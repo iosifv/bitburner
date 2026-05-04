@@ -5,13 +5,15 @@ export async function main(ns) {
   ns.ui.openTail();
 
   const CONFIG = {
-    loopDelay:             15000,
-    respectThreshold:      2e6,
-    ascensionThreshold:    1.4,
-    equipmentPriceDivisor: 1,
-    warfareThreshold:      0.75,
-    warfareMembers:        12,
-    warfareWarmup:         8,
+    loopDelay:              15000,
+    respectThreshold:       2e6,
+    ascensionThreshold:     1.4,
+    equipmentPriceDivisor:  1,
+    warfareThreshold:       0.75,
+    warfareMembers:         12,
+    warfareWarmup:          0,
+    wantedPenaltyThreshold: 0.1,  // switch to Vigilante Justice when effectiveness drops below 90%
+    terrorismRespectFloor:  1e5,  // minimum respect before Terrorism is allowed
   };
 
   const NAMES = [
@@ -47,7 +49,7 @@ export async function main(ns) {
 
     nameIndex       = recruit(ns, NAMES, nameIndex);
     const warfare   = updateWarfare(ns, gangInfo, members, CONFIG);
-    processMembers(ns, members, warfare.warfareRoster, wantMoney, CONFIG);
+    processMembers(ns, gangInfo, members, warfare.warfareRoster, wantMoney, CONFIG);
     printStatus(ns, gangInfo, members, wantMoney, warfare);
 
     await ns.sleep(CONFIG.loopDelay);

@@ -86,6 +86,7 @@ Paste error messages here as they appear in-game. Format: `old → new`.
 |---|---|
 | `ns.getPurchasedServerMaxRam()` | `ns.cloud.getRamLimit()` |
 | `ns.getPurchasedServerCost(ram)` | `ns.cloud.getServerCost(ram)` |
+| `ns.purchaseServer(name, ram)` | `ns.cloud.purchaseServer(name, ram)` |
 | `ns.formatRam(v)` | `ns.format.ram(v)` |
 | `ns.formatNumber(v)` | `ns.format.number(v)` |
 

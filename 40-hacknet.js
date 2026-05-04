@@ -11,7 +11,7 @@ export async function main(ns) {
   const LOOP_DELAY   = 10 * 1000; // 10 seconds
   // const BUDGET_RATIO = 0.25;      // never spend more than 25% of current money at once
   const BUDGET_RATIO = 1;  
-  const MAX_NODES    = 32; // ns.hacknet.maxNumNodes();
+  const MAX_NODES    = 20; // ns.hacknet.maxNumNodes();
 
 
   while (true) {
@@ -23,7 +23,7 @@ export async function main(ns) {
 
     if (nodeCount < MAX_NODES && money() >= newNodeCost) {
       const index = ns.hacknet.purchaseNode();
-      ns.tprint(`BUY     node-${index}  cost: $${ns.formatNumber(newNodeCost)}`);
+      ns.tprint(`BUY     node-${index}  cost: $${ns.format.number(newNodeCost)}`);
     }
 
     // ── Upgrade all existing nodes — cheapest first ───────────────────────
@@ -52,7 +52,7 @@ export async function main(ns) {
         if (opt.type === "core")  success = ns.hacknet.upgradeCore(opt.i, 1);
 
         if (success) {
-          ns.print(`UP      node-${opt.i}  ${opt.type.padEnd(6)}  $${ns.formatNumber(opt.cost)}`);
+          ns.print(`UP      node-${opt.i}  ${opt.type.padEnd(6)}  $${ns.format.number(opt.cost)}`);
           upgraded = true;
           break; // re-sort after each upgrade since costs change
         }
