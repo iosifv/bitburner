@@ -10,25 +10,25 @@ export async function main(ns) {
 
   const BOTNET_NAME    = "botnet";
   const STARTING_RAM   = 4;   // GB for newly purchased servers
-  const SERVER_LIMIT   = ns.getPurchasedServerLimit();
+  const SERVER_LIMIT   = ns.cloud.getServerLimit();
 
   // ── Buy missing servers ───────────────────────────────────────────────────
   // After an augmentation reset, all purchased servers are wiped.
   // Fill back up to the limit with STARTING_RAM servers.
-  const owned = ns.getPurchasedServers();
+  const owned = ns.cloud.getServerNames();
   const slots = SERVER_LIMIT - owned.length;
 
   if (slots > 0) {
     ns.tprint(`BUY     ${slots} slot(s) available — buying ${STARTING_RAM}GB servers`);
     for (let i = 0; i < slots; i++) {
-      const cost = ns.getPurchasedServerCost(STARTING_RAM);
+      const cost = ns.cloud.getServerUpgradeCost(STARTING_RAM);
       if (ns.getPlayer().money < cost) {
-        ns.tprint(`SKIP    insufficient funds for next server ($${ns.formatNumber(cost)})`);
+        ns.tprint(`SKIP    insufficient funds for next server ($${ns.format.number(cost)})`);
         break;
       }
       const name = ns.purchaseServer(BOTNET_NAME, STARTING_RAM);
       name
-        ? ns.tprint(`OK      purchased ${name.padEnd(20)} ${STARTING_RAM}GB  $${ns.formatNumber(cost)}`)
+        ? ns.tprint(`OK      purchased ${name.padEnd(20)} ${STARTING_RAM}GB  $${ns.format.number(cost)}`)
         : ns.tprint(`ERROR   purchaseServer() failed`);
     }
   }
@@ -40,19 +40,19 @@ export async function main(ns) {
     needRepeat = false;
 
     // Always upgrade the cheapest (lowest RAM) server first — keeps fleet balanced
-    const sorted = ns.getPurchasedServers()
+    const sorted = ns.cloud.getServerNames()
       .sort((a, b) => ns.getServerMaxRam(a) - ns.getServerMaxRam(b));
 
     for (const server of sorted) {
       const currentRam  = ns.getServerMaxRam(server);
       const upgradeRam  = currentRam * 2;
-      const upgradeCost = ns.getPurchasedServerUpgradeCost(server, upgradeRam);
+      const upgradeCost = ns.cloud.getServerUpgradeCost(server, upgradeRam);
 
       if (ns.getPlayer().money > upgradeCost) {
         needRepeat = true;
-        const success = ns.upgradePurchasedServer(server, upgradeRam);
+        const success = ns.cloud.upgradeServer(server, upgradeRam);
         success
-          ? ns.tprint(`UP      ${server.padEnd(20)} ${`${currentRam}GB → ${upgradeRam}GB`.padEnd(18)} $${ns.formatNumber(upgradeCost)}`)
+          ? ns.tprint(`UP      ${server.padEnd(20)} ${`${currentRam}GB → ${upgradeRam}GB`.padEnd(18)} $${ns.format.number(upgradeCost)}`)
           : ns.tprint(`ERROR   ${server.padEnd(20)} upgrade failed`);
       }
     }

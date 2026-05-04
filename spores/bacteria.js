@@ -1,4 +1,3 @@
-// servers/home/00-virus.js
 async function main(ns) {
   const target = ns.args[0];
   const secPad = ns.args[1] ?? 5;
@@ -18,10 +17,10 @@ async function main(ns) {
       ns.print(`[WEAKEN] sec=${sec.toFixed(2)} min=${minSec}`);
       await ns.weaken(target);
     } else if (money < maxMon * moneyThreshold) {
-      ns.print(`[GROW]   money=${ns.formatNumber(money)} / ${ns.formatNumber(maxMon)}`);
+      ns.print(`[GROW]   money=${ns.format.number(money)} / ${ns.format.number(maxMon)}`);
       await ns.grow(target);
     } else {
-      ns.print(`[HACK]   money=${ns.formatNumber(money)}`);
+      ns.print(`[HACK]   money=${ns.format.number(money)}`);
       await ns.hack(target);
     }
   }

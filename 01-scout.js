@@ -1,4 +1,4 @@
-import { log, reloadServers, printDiff } from "lib.js";
+import { reloadServers, printDiff } from "lib/scout.js";
 
 export async function main(ns) {
   ns.disableLog("ALL");

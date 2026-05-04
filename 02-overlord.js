@@ -1,4 +1,4 @@
-import { dispatch } from "lib.js";
+import { dispatch } from "lib/batch.js";
  
 export async function main(ns) {
   ns.disableLog("ALL");

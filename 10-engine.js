@@ -1,11 +1,13 @@
 /**
- * 99-engine.js
+ * 10-engine.js
  * Master loop — runs the full pipeline every cycle using lib.js directly.
  * Scripts (scout, overlord) still exist as thin wrappers for manual use.
  *
- * Usage: run 99-engine.js
+ * Usage: run 10-engine.js
  */
-import { log, reloadServers, printDiff, dispatch } from "lib.js";
+import { log }                        from "lib/logger.js";
+import { reloadServers, printDiff }   from "lib/scout.js";
+import { dispatch }                   from "lib/batch.js";
 
 export async function main(ns) {
   ns.disableLog("ALL");

@@ -5,7 +5,9 @@
  *
  * Usage: run 99-engine.js
  */
-import { log, reloadServers, printDiff, dispatch } from "lib.js";
+import { log }                        from "lib/logger.js";
+import { reloadServers, printDiff }   from "lib/scout.js";
+import { dispatch }                   from "lib/batch.js";
 
 export async function main(ns) {
   ns.disableLog("ALL");

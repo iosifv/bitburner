@@ -9,7 +9,7 @@
 export async function main(ns) {
   ns.disableLog("ALL");
 
-  const BRAINWORM_SCRIPT = "20-brainworm.js";
+  const BRAINWORM_SCRIPT = "spores/brainworm.js";
   const DATA_FILE        = "servers.json";
   const HOME_RESERVE_GB  = 16; // GB to keep free on home for other scripts
   const STOP_MODE        = ns.args.includes("--stop");
