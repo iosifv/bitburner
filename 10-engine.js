@@ -1,13 +1,7 @@
-/**
- * 10-engine.js
- * Master loop — runs the full pipeline every cycle using lib.js directly.
- * Scripts (scout, overlord) still exist as thin wrappers for manual use.
- *
- * Usage: run 10-engine.js
- */
 import { log }                        from "lib/logger.js";
 import { reloadServers, printDiff }   from "lib/scout.js";
 import { dispatch }                   from "lib/batch.js";
+import { buyServers, upgradeServers } from "lib/botnet.js";
 
 export async function main(ns) {
   ns.disableLog("ALL");
@@ -20,12 +14,8 @@ export async function main(ns) {
     log(ns, "tprint", "ENGINE", "CYCLE", `${cycle} starting...`);
 
     // 1. Buy + upgrade botnet servers
-    const pid = ns.exec("84-upgrade-botnet.js", "home");
-    if (pid === 0) {
-      log(ns, "tprint", "ENGINE", "WARN", "84-upgrade-botnet.js failed to start");
-    } else {
-      while (ns.isRunning(pid)) await ns.sleep(500);
-    }
+    buyServers(ns);
+    upgradeServers(ns);
 
     // 2. Scout — crawl network, root servers, write servers.json
     await reloadServers(ns, "tprint");

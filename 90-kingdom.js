@@ -50,11 +50,11 @@ export async function main(ns) {
     const st = (hackable ? "-" : String(s.serverReqLevel - myLevel)) + " " + (hackable ? "🍏" : "🍎");
 
     // RAM
-    const ramStr = ns.formatRam(s.serverMaxRam);
+    const ramStr = ns.format.ram(s.serverMaxRam);
 
     // Money
-    const maxMoneyStr   = ns.formatNumber(s.serverMaxMoney, 2)      + "$";
-    const availMoneyStr = ns.formatNumber(s.serverMoneyAvailable, 2) + "$";
+    const maxMoneyStr   = ns.format.number(s.serverMaxMoney, 2)      + "$";
+    const availMoneyStr = ns.format.number(s.serverMoneyAvailable, 2) + "$";
 
     // Security: current / min
     const secStr = `${s.serverSecurity.toFixed(1)}/${s.serverMinSecurity.toFixed(1)}`;

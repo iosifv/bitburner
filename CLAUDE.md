@@ -78,6 +78,17 @@ reloadServers()  →  servers.json  →  dispatch()  →  bacteria.js (per zombi
 - `80–84`: Server purchasing and upgrades
 - `90–92`: Visualization and dashboards
 
+## Deprecated API / Migration Notes
+
+Paste error messages here as they appear in-game. Format: `old → new`.
+
+| Removed function | Replacement |
+|---|---|
+| `ns.getPurchasedServerMaxRam()` | `ns.cloud.getRamLimit()` |
+| `ns.getPurchasedServerCost(ram)` | `ns.cloud.getServerCost(ram)` |
+| `ns.formatRam(v)` | `ns.format.ram(v)` |
+| `ns.formatNumber(v)` | `ns.format.number(v)` |
+
 ## Bitburner API Notes
 
 Scripts receive an `NS` object as their sole argument. Key namespaces:
