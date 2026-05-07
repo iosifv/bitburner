@@ -6,6 +6,8 @@
  *
  * Usage: run 00-init.js
  */
+import { fillTerminal, printButton } from "lib/utils.js";
+
 export async function main(ns) {
 
   const TARGETS = [
@@ -16,19 +18,8 @@ export async function main(ns) {
     "w0r1d_d43m0n",
   ];
 
-  // Not sure this works tbh
-  // function runTerminalCommand(cmd) {
-  //   const input = document.getElementById("terminal-input");
-  //   input.value = cmd;
-  //   input.dispatchEvent(new KeyboardEvent("keydown", { keyCode: 13, bubbles: true }));
-  // }
-
-  // runTerminalCommand("buy -a");
-
   // ── Buy TOR + programs ───────────────────────────────────────────────────
   ns.tprint("─".repeat(50));
-  // ns.tprint("SHOP    Running buy -a...");
-  // ns.terminal("buy -a");
 
   // ── Hack targets ─────────────────────────────────────────────────────────
   const raw = ns.read("servers.json");
@@ -39,26 +30,19 @@ export async function main(ns) {
     const tag = target.padEnd(20);
     const path = pathMap[target];
 
-    ns.tprint("─".repeat(50));
-    ns.tprint(`TARGET  ${tag}`);
+    // ns.tprintRaw("─".repeat(50));
 
     if (path) {
-      ns.tprint(`PATH      ${path.join(" → ")}`);
-      ns.tprint(`COMMAND   connect ${path.join("; connect ")}; hack`);
-    } else {
-      ns.tprint(`PATH      not found in servers.json`);
-    }
-    // if (!ns.hasRootAccess(target)) {
-    //   try { ns.nuke(target); } catch {
-    //     ns.tprint(`SKIP    ${tag} — could not nuke`);
-    //     continue;
-    //   }
-    // }
+      const command = `connect ${path.join("; connect ")}; hack`;
 
-    // ns.tprint(`HACK    ${tag} hacking...`);
-    // const result = await ns.hack(target);
-    // ns.tprint(`OK      ${tag} stole $${ns.formatNumber(result)}`);
+      // ns.tprintRaw(`TARGET  ${tag} | ${path.join(" → ")}`);
+      // ns.tprintRaw(`COMMAND   connect ${path.join("; connect ")}; hack`);
+
+      printButton(ns, ` → `, "▶ run", `  ${tag} - ${path.join(" → ")}`,() => fillTerminal(command));
+    } else {
+      ns.tprintRaw(`PATH      not found in servers.json`);
+    }
   }
 
-  ns.tprint("─".repeat(50));
+  ns.tprintRaw("─".repeat(50));
 }

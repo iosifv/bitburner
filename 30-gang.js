@@ -9,9 +9,9 @@ export async function main(ns) {
     respectThreshold:       2e6,
     ascensionThreshold:     1.4,
     equipmentPriceDivisor:  1,
-    warfareThreshold:       0.75,
+    warfareThreshold:       0.65,
     warfareMembers:         12,
-    warfareWarmup:          0,
+    warfareWarmup:          4,
     wantedPenaltyThreshold: 0.1,  // switch to Vigilante Justice when effectiveness drops below 90%
     terrorismRespectFloor:  1e5,  // minimum respect before Terrorism is allowed
   };
@@ -55,3 +55,4 @@ export async function main(ns) {
     await ns.sleep(CONFIG.loopDelay);
   }
 }
+
