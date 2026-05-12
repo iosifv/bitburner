@@ -17,7 +17,7 @@ export async function main(ns) {
   // ── Load servers.json ────────────────────────────────────────────────────
   const raw = ns.read(DATA_FILE);
   if (!raw || raw === "NULL PORT DATA") {
-    ns.tprint(`ERROR  ${DATA_FILE} not found — run 01-discovery.js first`);
+    ns.tprint(`ERROR  ${DATA_FILE} not found`);
     return;
   }
 

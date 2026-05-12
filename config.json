@@ -41,6 +41,10 @@
 
   "batching-loop-delay": { "type": "number", "value": 10, "label": "Batching Loop Delay (s)" },
 
+  "log-include-tick": { "type": "boolean", "value": false, "label": "TICK" },
+  "log-include-dispatching": { "type": "boolean", "value": false, "label": "dispatching..." },
+  "log-include-no-changes": { "type": "boolean", "value": false, "label": "no changes since last scan" },
+
 
   "last-one": null
 }

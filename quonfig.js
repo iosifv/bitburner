@@ -69,7 +69,7 @@ function ConfigApp({ initialCfg }) {
     }),
   ]);
 
-  return React.createElement("div", { style: { fontFamily: "monospace", padding: "6px 10px" } },
+  return React.createElement("div", { style: { fontFamily: "monospace", padding: "6px 10px", fontSize: "0.75em" } },
     React.createElement("div", {
       style: { color: "#888", marginBottom: "4px", borderBottom: "1px solid #333", paddingBottom: "6px", fontSize: "0.85em" },
     }, "⚙  config.json — click to edit"),

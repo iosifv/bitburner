@@ -12,6 +12,16 @@ const SUB_ENGINES = [
 
 const LIFECYCLE_EVERY = 20; // ticks between spawn/kill checks (~5s at 250ms)
 
+function buildLogFilters(ns) {
+  try {
+    const raw = ns.read("config.json");
+    if (!raw || raw === "NULL PORT DATA") return [];
+    return Object.entries(JSON.parse(raw))
+      .filter(([key, entry]) => entry && key.startsWith("log-include-") && entry.value === false)
+      .map(([, entry]) => entry.label);
+  } catch { return []; }
+}
+
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
@@ -23,7 +33,8 @@ export async function main(ns) {
 
   log(ns, "print", "ENGINE-V2", "START", "orchestrator online");
 
-  let tick = 0;
+  let tick       = 0;
+  let logFilters = buildLogFilters(ns);
 
   while (true) {
     // Drain LOG_PORT — collect all pending sub-engine messages
@@ -31,14 +42,17 @@ export async function main(ns) {
     while ((entry = ns.readPort(LOG_PORT)) !== "NULL PORT DATA") {
       try {
         const { source, action, message } = JSON.parse(entry);
+        const line = `[${source}]`.padEnd(12) + action.padEnd(10) + message;
+        if (logFilters.some(f => line.includes(f))) continue;
         log(ns, "print", source, action, message);
       } catch {
         ns.print(entry);
       }
     }
 
-    // Throttled lifecycle: spawn / kill sub-engines based on config flags
+    // Throttled lifecycle: spawn / kill sub-engines + refresh log filters
     if (tick % LIFECYCLE_EVERY === 0) {
+      logFilters = buildLogFilters(ns);
       for (const { name, script } of SUB_ENGINES) {
         const enabled = getConfig(ns, `enable-${name}`);
         const running = ns.isRunning(script, "home");
