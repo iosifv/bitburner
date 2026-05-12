@@ -1,8 +1,7 @@
 /**
- * 00-init.js
- * Nukes and hacks faction servers in order.
- * Prints the path to each server from servers.json.
- * Also buys TOR router and all available programs.
+ * 91-respawn.js
+ *
+ * Quick access to early-game hack targets after respawning.
  *
  * Usage: run 00-init.js
  */

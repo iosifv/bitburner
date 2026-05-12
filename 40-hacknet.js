@@ -9,10 +9,9 @@ export async function main(ns) {
   ns.disableLog("ALL");
 
   const LOOP_DELAY   = 10 * 1000; // 10 seconds
-  // const BUDGET_RATIO = 0.25;      // never spend more than 25% of current money at once
-  const BUDGET_RATIO = 1;  
-  const MAX_NODES    = 20; // ns.hacknet.maxNumNodes();
-
+  const BUDGET_RATIO = 0.25;      // never spend more than 25% of current money at once
+  // const BUDGET_RATIO = 1;  
+  const MAX_NODES    = 12; // ns.hacknet.maxNumNodes();
 
   while (true) {
     const money = () => ns.getPlayer().money * BUDGET_RATIO;

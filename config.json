@@ -1,0 +1,24 @@
+{
+  "engine-loop-delay": { "type": "number", "value": 30000, "label": "Loop Delay (ms)" },
+  "engine-print-botnet": { "type": "boolean", "value": true, "label": "Print Botnet Info" },
+
+
+  "botnet-buy": { "type": "boolean", "value": true, "label": "Buy Servers" },
+  "botnet-upgrade": { "type": "boolean", "value": true, "label": "Upgrade Servers" },
+  "botnet-min-ram": { "type": "number", "value": 4, "label": "Botnet Min RAM (GB)" },
+
+  "telepathy-enable": { "type": "boolean", "value": false, "label": "Enable Telepathy" },
+  "telepathy-size": { "type": "number", "value": 50, "label": "Telepathy Gigabytes shares" },
+
+
+  "hacknet-enable": { "type": "boolean", "value": false, "label": "Enable Hacknet" },
+  "hacknet-buy-limit": { "type": "number", "value": 12, "label": "Hacknet Max Nodes" },
+
+
+  "gang-enable": { "type": "boolean", "value": false, "label": "Enable Gang" },
+
+
+
+
+  "last-one": null
+}

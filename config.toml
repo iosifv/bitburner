@@ -3,6 +3,6 @@ Directory = "./"
 FileScanInterval = 1000
 
 [FilePatterns]
-  Include = ["*.js", "*.ts", "*/*.js", "*/*.ts"]
+  Include = ["*.js", "*.ts", "*.json", "*/*.js", "*/*.ts"]
   Exclude = ["*.d.ts", "savefiles/*", "archive/*"]
 
