@@ -1,7 +1,8 @@
 import { setConfig } from "lib/config.js";
 
-let pendingEdit = null;  // set by buttons, consumed by main loop
-let pushCfg     = null;  // set by component, called by main loop to push fresh cfg
+let pendingEdit  = null;  // set by buttons, consumed by main loop
+let pushCfg      = null;  // set by component, called by main loop to push fresh cfg
+let notifySaved  = null;  // set by component, called by main loop after a write
 
 function loadCfg(ns) {
   const raw = ns.read("config.json");
@@ -19,8 +20,14 @@ function groupByPrefix(cfg) {
 }
 
 function ConfigApp({ initialCfg }) {
-  const [cfg, setCfg] = React.useState(initialCfg);
-  pushCfg = setCfg;
+  const [cfg, setCfg]         = React.useState(initialCfg);
+  const [savedKey, setSavedKey] = React.useState(null);
+
+  pushCfg     = setCfg;
+  notifySaved = (key) => {
+    setSavedKey(key);
+    setTimeout(() => setSavedKey(null), 1200);
+  };
 
   const groups = groupByPrefix(cfg);
 
@@ -57,6 +64,7 @@ function ConfigApp({ initialCfg }) {
         React.createElement("td", { style: { paddingRight: "20px", color: "#aaa", paddingBottom: "3px" } }, label),
         React.createElement("td", { style: { paddingRight: "16px", color: "#555", fontSize: "0.75em", fontStyle: "italic" } }, type),
         React.createElement("td", { style: { paddingBottom: "3px" } }, control),
+        React.createElement("td", { style: { paddingLeft: "10px", color: "#4dff4d", fontSize: "0.8em", opacity: savedKey === key ? 1 : 0, transition: "opacity 0.3s" } }, "✓"),
       );
     }),
   ]);
@@ -74,6 +82,8 @@ function ConfigApp({ initialCfg }) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
+  ns.ui.resizeTail(500, 1300);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - 500 - 1, 20);
 
   const initialCfg = loadCfg(ns);
   ns.printRaw(React.createElement(ConfigApp, { initialCfg }));
@@ -95,5 +105,6 @@ export async function main(ns) {
     }
 
     pushCfg?.(loadCfg(ns));
+    notifySaved?.(key);
   }
 }
