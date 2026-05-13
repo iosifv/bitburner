@@ -25,6 +25,8 @@ function buildLogFilters(ns) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
+  ns.ui.resizeTail(800, 1300);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - 450 - 800 - 1, 20);
 
   if (!getConfig(ns, "enable-engine-v2")) {
     log(ns, "print", "ENGINE-V2", "HALT", "master switch is off — exiting");

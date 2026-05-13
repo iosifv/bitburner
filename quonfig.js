@@ -52,11 +52,12 @@ function ConfigApp({ initialCfg }) {
         }, value ? "ON" : "OFF");
       } else {
         control = React.createElement("span", null,
-          React.createElement("span", { style: { marginRight: "10px", color: "#e0e0e0" } }, String(value)),
           React.createElement("button", {
             onClick: () => { pendingEdit = { key, type }; },
-            style: { cursor: "pointer", fontSize: "0.8em", padding: "1px 7px", opacity: 0.7 },
+            style: { cursor: "pointer", fontSize: "0.8em", padding: "1px 7px", opacity: 0.7 , minWidth: "52px",marginRight: "10px"},
           }, "edit"),
+
+          React.createElement("span", { style: { marginRight: "10px", color: "#e0e0e0" } }, String(value)),
         );
       }
 
@@ -82,8 +83,8 @@ function ConfigApp({ initialCfg }) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(500, 1300);
-  ns.ui.moveTail(ns.ui.windowSize()[0] - 500 - 1, 20);
+  ns.ui.resizeTail(450, 1300);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - 450 - 1, 20);
 
   const initialCfg = loadCfg(ns);
   ns.printRaw(React.createElement(ConfigApp, { initialCfg }));

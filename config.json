@@ -1,8 +1,8 @@
 {
   "enable-engine-v2": { "type": "boolean", "value": true, "label": "Enable engine-v2" },
   "enable-scout": { "type": "boolean", "value": true, "label": "Enable Scout" },
-  "enable-botnet": { "type": "boolean", "value": true, "label": "Enable Botnet" },
   "enable-batching": { "type": "boolean", "value": true, "label": "Enable Batching" },
+  "enable-botnet": { "type": "boolean", "value": true, "label": "Enable Botnet" },
   "enable-telepathy": { "type": "boolean", "value": false, "label": "Enable Telepathy" },
   "enable-hacknet": { "type": "boolean", "value": false, "label": "Enable Hacknet" },
   "enable-gang": { "type": "boolean", "value": false, "label": "Enable Gang" },
@@ -42,7 +42,8 @@
   "batching-loop-delay": { "type": "number", "value": 10, "label": "Batching Loop Delay (s)" },
 
   "log-include-tick": { "type": "boolean", "value": false, "label": "TICK" },
-  "log-include-dispatching": { "type": "boolean", "value": false, "label": "dispatching..." },
+  "log-include-overlord": { "type": "boolean", "value": false, "label": "[OVERLORD]" },
+  "log-include-telepathy": { "type": "boolean", "value": false, "label": "[TELEPATHY]" },
   "log-include-no-changes": { "type": "boolean", "value": false, "label": "no changes since last scan" },
 
 
