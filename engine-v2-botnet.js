@@ -7,8 +7,8 @@ class BotnetEngine extends EngineStoke {
   constructor(ns) { super(ns, "botnet"); }
   async tick() {
     this.log("TICK", "checking botnet...");
-    if (getConfig(this.ns, "botnet-buy"))     buyServers(this.ns, "port");
-    if (getConfig(this.ns, "botnet-upgrade")) upgradeServers(this.ns, "port");
+    buyServers(this.ns, "port");
+    upgradeServers(this.ns, "port");
   }
 }
 

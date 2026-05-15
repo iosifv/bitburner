@@ -57,7 +57,7 @@ export async function main(ns) {
     const availMoneyStr = ns.format.number(s.serverMoneyAvailable, 2) + "$";
 
     // Security: current / min
-    const secStr = `${s.serverSecurity.toFixed(1)}/${s.serverMinSecurity.toFixed(1)}`;
+    const secStr = `${s.serverSecurity.toFixed(0)}/${s.serverMinSecurity.toFixed(0)}`;
 
     // Hack chance
     const chanceStr = `${(s.hackChance * 100).toFixed(1)}%`;

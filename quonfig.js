@@ -47,15 +47,15 @@ function ConfigApp({ initialCfg }) {
             background: value ? "#1a4d1a" : "#4d1a1a",
             color:      value ? "#4dff4d" : "#ff4d4d",
             border: "none", padding: "2px 14px", cursor: "pointer",
-            borderRadius: "3px", fontWeight: "bold", minWidth: "52px", fontFamily: "monospace",
+            borderRadius: "3px", fontWeight: "bold", minWidth: "56px", fontFamily: "monospace",
           },
         }, value ? "ON" : "OFF");
       } else {
-        control = React.createElement("span", null,
+        control = React.createElement("span", { style: { whiteSpace: "nowrap" } },
           React.createElement("button", {
             onClick: () => { pendingEdit = { key, type }; },
-            style: { cursor: "pointer", fontSize: "0.8em", padding: "1px 7px", opacity: 0.7 , minWidth: "52px",marginRight: "10px"},
-          }, "edit"),
+            style: { cursor: "pointer", background: "#8b8b8b",fontSize: "0.9em", padding: "1px 7px", opacity: 0.7 , minWidth: "52px", marginRight: "10px"},
+          }, "✍️"),
 
           React.createElement("span", { style: { marginRight: "10px", color: "#e0e0e0" } }, String(value)),
         );
@@ -83,8 +83,8 @@ function ConfigApp({ initialCfg }) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(450, 1300);
-  ns.ui.moveTail(ns.ui.windowSize()[0] - 450 - 1, 20);
+  ns.ui.resizeTail(quonfigWidth, quonfigHeight);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - quonfigWidth - 1, quonfigTopPadding);
 
   const initialCfg = loadCfg(ns);
   ns.printRaw(React.createElement(ConfigApp, { initialCfg }));
@@ -109,3 +109,7 @@ export async function main(ns) {
     notifySaved?.(key);
   }
 }
+
+export const quonfigTopPadding = 20;
+export const quonfigWidth      = 420;
+export const quonfigHeight     = 1300;

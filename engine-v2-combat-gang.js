@@ -1,4 +1,4 @@
-// Part of the engine-v2 system — engine-v2-gang.js: GangEngine runner
+// Part of the engine-v2 system — engine-v2-combat-gang.js: CombatGangEngine runner
 import { EngineStoke }                                                        from "lib/engine-stoke.js";
 import { renameMembers, recruit, updateWarfare, processMembers, printStatus } from "lib/gang.js";
 import { getConfig }                                                           from "lib/config.js";
@@ -12,26 +12,26 @@ const NAMES = [
   "Stormfront",  "Kimiko",
 ];
 
-class GangEngine extends EngineStoke {
+class CombatGangEngine extends EngineStoke {
   constructor(ns) {
-    super(ns, "gang");
+    super(ns, "combat-gang");
     this.names         = NAMES;
     this.nameIndex     = ns.gang.getMemberNames().length;
     this.lastTerritory = ns.gang.getGangInformation().territory;
     renameMembers(ns, NAMES);
   }
 
-  get gangConfig() {
+  get combatGangConfig() {
     const ns = this.ns;
     return {
-      respectThreshold:       getConfig(ns, "gang-respect-threshold"),
+      respectThreshold:       getConfig(ns, "gang-respect-threshold") * 1000,
       ascensionThreshold:     getConfig(ns, "gang-ascension-threshold"),
       equipmentPriceDivisor:  getConfig(ns, "gang-equipment-price-divisor"),
       warfareThreshold:       getConfig(ns, "gang-warfare-threshold"),
       warfareMembers:         getConfig(ns, "gang-warfare-members"),
       warfareWarmup:          getConfig(ns, "gang-warfare-warmup"),
       wantedPenaltyThreshold: getConfig(ns, "gang-wanted-penalty-threshold"),
-      terrorismRespectFloor:  getConfig(ns, "gang-terrorism-respect-floor"),
+      terrorismRespectFloor:  getConfig(ns, "gang-respect-floor-terrorism") * 1000,
     };
   }
 
@@ -39,7 +39,7 @@ class GangEngine extends EngineStoke {
     const ns        = this.ns;
     const gangInfo  = ns.gang.getGangInformation();
     const members   = ns.gang.getMemberNames();
-    const config    = this.gangConfig;
+    const config    = this.combatGangConfig;
     const wantMoney = gangInfo.respect >= config.respectThreshold;
 
     const territoryDelta = gangInfo.territory - this.lastTerritory;
@@ -63,7 +63,7 @@ class GangEngine extends EngineStoke {
 
 export async function main(ns) {
   ns.disableLog("ALL");
-  const engine = new GangEngine(ns);
+  const engine = new CombatGangEngine(ns);
   while (true) {
     await engine.tick();
     await ns.sleep(engine.loopDelay);

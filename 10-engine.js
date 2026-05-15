@@ -22,8 +22,8 @@ export async function main(ns) {
     log(ns, "print", "ENGINE", "CYCLE", `${cycle} starting...`);
 
     // 1. Buy + upgrade botnet servers
-    if (cfg["botnet-buy"])     buyServers(ns);
-    if (cfg["botnet-upgrade"]) upgradeServers(ns);
+    buyServers(ns);
+    upgradeServers(ns);
 
     // 2. Gang + Hacknet — managed as child scripts
     syncScript(ns, cfg["enable-gang"],    "30-gang.js");
@@ -36,7 +36,7 @@ export async function main(ns) {
     // 4. Dispatch — assign virus workers to best target
     await dispatch(ns, "print");
 
-    log(ns, "print", "ENGINE", "SLEEP", `cycle ${cycle} complete — sleeping ${cfg["engine-loop-delay"]}s`);
-    await ns.sleep(cfg["engine-loop-delay"] * 1000);
+    log(ns, "print", "ENGINE", "SLEEP", `cycle ${cycle} complete — sleeping ${cfg["loop-delay-engine"]}s`);
+    await ns.sleep(cfg["loop-delay-engine"] * 1000);
   }
 }

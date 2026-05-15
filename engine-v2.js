@@ -1,13 +1,16 @@
 // Part of the engine-v2 system — engine-v2.js: orchestrator (port drain + spawn/kill supervisor)
 import { LOG_PORT, log } from "lib/logger.js";
 import { getConfig }     from "lib/config.js";
+import { quonfigHeight, quonfigTopPadding, quonfigWidth } from "./quonfig";
 
 const SUB_ENGINES = [
   { name: "scout",    script: "engine-v2-scout.js"    },
   { name: "batching", script: "engine-v2-batching.js" },
+  { name: "stats",    script: "engine-v2-stats.js"    },
   { name: "botnet",   script: "engine-v2-botnet.js"   },
-  { name: "gang",     script: "engine-v2-gang.js"     },
-  { name: "hacknet",  script: "engine-v2-hacknet.js"  },
+  { name: "combat-gang",  script: "engine-v2-combat-gang.js"  },
+  { name: "hacking-gang", script: "engine-v2-hacking-gang.js" },
+  { name: "hacknet",      script: "engine-v2-hacknet.js"      },
 ];
 
 const LIFECYCLE_EVERY = 20; // ticks between spawn/kill checks (~5s at 250ms)
@@ -25,8 +28,8 @@ function buildLogFilters(ns) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(800, 1300);
-  ns.ui.moveTail(ns.ui.windowSize()[0] - 450 - 800 - 1, 20);
+  ns.ui.resizeTail(engineWidth, quonfigHeight);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - quonfigWidth - engineWidth - 1, 20);
 
   if (!getConfig(ns, "enable-engine-v2")) {
     log(ns, "print", "ENGINE-V2", "HALT", "master switch is off — exiting");
@@ -71,6 +74,8 @@ export async function main(ns) {
     }
 
     tick++;
-    await ns.sleep(getConfig(ns, "engine-orchestrator-delay") * 1000);
+    await ns.sleep(getConfig(ns, "loop-delay-orchestrator-drain") * 1000);
   }
 }
+
+export const engineWidth = 800;

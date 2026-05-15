@@ -39,9 +39,10 @@ export async function main(ns) {
 
       printButton(ns, ` → `, "▶ run", `  ${tag} - ${path.join(" → ")}`,() => fillTerminal(command));
     } else {
-      ns.tprintRaw(`PATH      not found in servers.json`);
+      ns.tprintRaw(` →   ⚠️    ${target.padEnd(20)} - not found in servers.json`);
     }
   }
 
+  ns.tprintRaw("Darknet = Chongqing ─ Shadowed walkway");
   ns.tprintRaw("─".repeat(50));
 }

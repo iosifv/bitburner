@@ -1,51 +1,56 @@
 {
   "enable-engine-v2": { "type": "boolean", "value": true, "label": "Enable engine-v2" },
   "enable-scout": { "type": "boolean", "value": true, "label": "Enable Scout" },
+  "enable-stats": { "type": "boolean", "value": true, "label": "Enable Stats" },
   "enable-batching": { "type": "boolean", "value": true, "label": "Enable Batching" },
   "enable-botnet": { "type": "boolean", "value": true, "label": "Enable Botnet" },
   "enable-telepathy": { "type": "boolean", "value": false, "label": "Enable Telepathy" },
   "enable-hacknet": { "type": "boolean", "value": false, "label": "Enable Hacknet" },
-  "enable-gang": { "type": "boolean", "value": false, "label": "Enable Gang" },
+  "enable-combat-gang": { "type": "boolean", "value": false, "label": "Enable Combat Gang" },
+  "enable-hacking-gang": { "type": "boolean", "value": false, "label": "Enable Hacking Gang" },
 
+  "batching-forced-target": { "type": "string", "value": "", "label": "Force Target" },
+  "engine-free-home-ram": { "type": "number", "value": 60, "label": "Free home RAM (GB)" },
 
-  "engine-loop-delay": { "type": "number", "value": 10, "label": "Loop Delay (s)" },
-  "engine-print-botnet": { "type": "boolean", "value": true, "label": "Print Botnet Info" },
-  "engine-orchestrator-delay": { "type": "number", "value": 0.25, "label": "Orchestrator Drain Delay (s)" },
+  "botnet-min-ram": { "type": "number", "value": 16, "label": "Botnet Min RAM (GB)" },
 
-
-  "botnet-buy": { "type": "boolean", "value": true, "label": "Buy Servers" },
-  "botnet-upgrade": { "type": "boolean", "value": true, "label": "Upgrade Servers" },
-  "botnet-min-ram": { "type": "number", "value": 4, "label": "Botnet Min RAM (GB)" },
-  "botnet-loop-delay": { "type": "number", "value": 10, "label": "Botnet Loop Delay (s)" },
-
-  "telepathy-size": { "type": "number", "value": 50, "label": "Telepathy Gigabytes shares" },
+  "telepathy-size": { "type": "number", "value": 50, "label": "Telepathy GB shares" },
 
 
   "hacknet-buy-limit": { "type": "number", "value": 12, "label": "Hacknet Max Nodes" },
-  "hacknet-loop-delay": { "type": "number", "value": 10, "label": "Hacknet Loop Delay (s)" },
   "hacknet-budget-ratio": { "type": "number", "value": 0.25, "label": "Hacknet Budget Ratio" },
 
 
-  "gang-loop-delay": { "type": "number", "value": 10, "label": "Gang Loop Delay (s)" },
-  "gang-respect-threshold": { "type": "number", "value": 2000000, "label": "Gang Respect → Money Threshold" },
-  "gang-ascension-threshold": { "type": "number", "value": 1.4, "label": "Gang Ascension Multiplier Threshold" },
-  "gang-equipment-price-divisor": { "type": "number", "value": 1, "label": "Gang Equipment Price Divisor" },
-  "gang-warfare-threshold": { "type": "number", "value": 0.65, "label": "Gang Warfare Win Chance Threshold" },
-  "gang-warfare-members": { "type": "number", "value": 12, "label": "Gang Warfare Member Count" },
-  "gang-warfare-warmup": { "type": "number", "value": 4, "label": "Gang Warfare Warmup Members" },
-  "gang-wanted-penalty-threshold": { "type": "number", "value": 0.1, "label": "Gang Wanted Penalty Threshold" },
-  "gang-terrorism-respect-floor": { "type": "number", "value": 100000, "label": "Gang Terrorism Respect Floor" },
+  "gang-respect-threshold": { "type": "number", "value": 2000, "label": "> Respect³ → Money" },
+  "gang-ascension-threshold": { "type": "number", "value": 1.4, "label": "> Ascension Multiplier" },
+  "gang-wanted-penalty-threshold": { "type": "number", "value": 0.1, "label": "> Wanted Penalty" },
+  "gang-equipment-price-divisor": { "type": "number", "value": 1, "label": "Equipment Price Divisor" },
+  "gang-respect-floor-cyberterrorism": { "type": "number", "value": 100, "label": "👨‍💻 Cyberterrorism Respect³" },
+  "gang-respect-floor-terrorism": { "type": "number", "value": 100, "label": "🦹 Terrorism Respect³" },
+  "gang-warfare-threshold": { "type": "number", "value": 0.65, "label": "🦹 Warfare Win" },
+  "gang-warfare-members": { "type": "number", "value": 12, "label": "🦹 Warfare Total Members" },
+  "gang-warfare-warmup": { "type": "number", "value": 4, "label": "🦹 Warfare Warmup Members" },
 
 
-  "scout-loop-delay": { "type": "number", "value": 10, "label": "Scout Loop Delay (s)" },
 
-  "batching-loop-delay": { "type": "number", "value": 10, "label": "Batching Loop Delay (s)" },
 
-  "log-include-tick": { "type": "boolean", "value": false, "label": "TICK" },
+  "log-include-stats": { "type": "boolean", "value": true, "label": "[STATS]" },
   "log-include-overlord": { "type": "boolean", "value": false, "label": "[OVERLORD]" },
   "log-include-telepathy": { "type": "boolean", "value": false, "label": "[TELEPATHY]" },
+  "log-include-tick": { "type": "boolean", "value": false, "label": "TICK" },
   "log-include-no-changes": { "type": "boolean", "value": false, "label": "no changes since last scan" },
 
+  "stats-history-size": { "type": "number", "value": 240, "label": "Stats History Samples" },
+
+  "loop-delay-orchestrator-drain": { "type": "number", "value": 0.25, "label": "Orchestrator Drain" },
+  "loop-delay-engine": { "type": "number", "value": 10, "label": "Engine" },
+  "loop-delay-botnet": { "type": "number", "value": 10, "label": "Botnet" },
+  "loop-delay-scout": { "type": "number", "value": 10, "label": "Scout" },
+  "loop-delay-batching": { "type": "number", "value": 10, "label": "Batching" },
+  "loop-delay-stats": { "type": "number", "value": 10, "label": "Stats" },
+  "loop-delay-hacknet": { "type": "number", "value": 10, "label": "Hacknet" },
+  "loop-delay-combat-gang": { "type": "number", "value": 10, "label": "Combat Gang" },
+  "loop-delay-hacking-gang": { "type": "number", "value": 10, "label": "Hacking Gang" },
 
   "last-one": null
 }
