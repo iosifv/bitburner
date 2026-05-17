@@ -10,8 +10,8 @@
  * Usage: run singularity-training.js
  */
 
-const TARGET_LEVEL    = 75;
-const SLICE_MS        = 10_000;   // train each stat for this long per loop tick
+const TARGET_LEVEL    = 200;
+const SLICE_MS        = 60_000;   // train each stat for this long per loop tick
 
 const COMBAT_CITY     = "Sector-12";
 const COMBAT_GYM      = "Powerhouse Gym";
@@ -119,8 +119,8 @@ function printStatus(ns, skills) {
     const cur    = skills[STATS[stat]];
     const target = TARGETS[stat];
     const done   = cur >= target;
-    const bar    = progressBar(cur, target, 16);
-    ns.print(`${done ? "✓" : "·"} ${stat.padEnd(10)} ${String(cur).padStart(4)} / ${target}  ${bar}`);
+    const bar    = progressBar(cur, target, 36);
+    ns.print(`${done ? "✓" : "·"} ${stat.padEnd(5)} ${String(cur).padStart(4)} / ${target}  ${bar}`);
   }
   ns.print("─".repeat(44));
 }
