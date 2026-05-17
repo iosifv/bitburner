@@ -33,9 +33,9 @@
 
 
 
-
   "log-include-stats": { "type": "boolean", "value": true, "label": "[STATS]" },
   "log-include-overlord": { "type": "boolean", "value": false, "label": "[OVERLORD]" },
+  "log-include-hack-gang": { "type": "boolean", "value": false, "label": "[HACK-GANG]" },
   "log-include-telepathy": { "type": "boolean", "value": false, "label": "[TELEPATHY]" },
   "log-include-tick": { "type": "boolean", "value": false, "label": "TICK" },
   "log-include-no-changes": { "type": "boolean", "value": false, "label": "no changes since last scan" },

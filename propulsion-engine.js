@@ -15,6 +15,7 @@ const SUB_ENGINES = [
 
 const LIFECYCLE_EVERY = 20; // ticks between spawn/kill checks (~5s at 250ms)
 
+
 function buildLogFilters(ns) {
   try {
     const raw = ns.read("config.json");

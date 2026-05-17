@@ -64,7 +64,7 @@ class HackingGangEngine extends EngineStoke {
         if (!owned && ["Rootkit", "Augmentation"].includes(type)
             && ns.getPlayer().money > cost * equipmentPriceDivisor) {
           ns.gang.purchaseEquipment(name, eq);
-          log(ns, "silent", "HACK-GANG", "EQUIP", `${name.padEnd(15)} ${eq}`);
+          log(ns, "port", "HACK-GANG", "EQUIP", `${name.padEnd(15)} ${eq}`);
         }
       }
 
