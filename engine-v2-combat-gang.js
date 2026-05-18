@@ -1,7 +1,7 @@
 // Part of the engine-v2 system — engine-v2-combat-gang.js: CombatGangEngine runner
-import { EngineStoke }                                                        from "lib/engine-stoke.js";
-import { renameMembers, recruit, updateWarfare, processMembers, printStatus } from "lib/gang.js";
-import { getConfig }                                                           from "lib/config.js";
+import { EngineStoke }                    from "lib/engine-stoke.js";
+import { renameMembers, recruit, setTask } from "lib/gang.js";
+import { getConfig }                       from "lib/config.js";
 
 const NAMES = [
   "Homelander",  "Billy Butcher",
@@ -15,54 +15,117 @@ const NAMES = [
 class CombatGangEngine extends EngineStoke {
   constructor(ns) {
     super(ns, "combat-gang");
-    this.names         = NAMES;
-    this.nameIndex     = ns.gang.getMemberNames().length;
-    this.lastTerritory = ns.gang.getGangInformation().territory;
+    this.names     = NAMES;
+    this.nameIndex = ns.gang.getMemberNames().length;
     renameMembers(ns, NAMES);
   }
 
-  get combatGangConfig() {
+  get config() {
     const ns = this.ns;
     return {
       respectThreshold:       getConfig(ns, "gang-respect-threshold") * 1000,
       ascensionThreshold:     getConfig(ns, "gang-ascension-threshold"),
-      equipmentPriceDivisor:  getConfig(ns, "gang-equipment-price-divisor"),
-      warfareThreshold:       getConfig(ns, "gang-warfare-threshold"),
-      warfareMembers:         getConfig(ns, "gang-warfare-members"),
-      warfareWarmup:          getConfig(ns, "gang-warfare-warmup"),
+      buyEquipment:           getConfig(ns, "gang-buy-equipment"),
       wantedPenaltyThreshold: getConfig(ns, "gang-wanted-penalty-threshold"),
       terrorismRespectFloor:  getConfig(ns, "gang-respect-floor-terrorism") * 1000,
     };
   }
 
+  // ── helpers ───────────────────────────────────────────────────────────────────
+
+  #combatScore(info) {
+    return info.str + info.def + info.dex + info.agi;
+  }
+
+  // ── task selection ─────────────────────────────────────────────────────────────
+
+  #taskFor(info, gangInfo, wantMoney) {
+    const { wantedPenaltyThreshold, terrorismRespectFloor } = this.config;
+    if (gangInfo.wantedPenalty < 1 - wantedPenaltyThreshold) return "Vigilante Justice";
+    const score = this.#combatScore(info);
+    if (score <  200) return "Train Combat";
+    if (score <  600) return "Mug People";
+    if (score < 1500) return "Armed Robbery";
+    if (score < 3000) return "Traffick Illegal Arms";
+    // Terrorism generates too much wanted level to run safely at low respect
+    if (!wantMoney && gangInfo.respect >= terrorismRespectFloor) return "Terrorism";
+    return "Traffick Illegal Arms";
+  }
+
+  // ── per-member actions ─────────────────────────────────────────────────────────
+
+  #ascend(name) {
+    const ascResult = this.ns.gang.getAscensionResult(name);
+    if (!ascResult) return;
+    const t = this.config.ascensionThreshold;
+    if (ascResult.str < t && ascResult.def < t && ascResult.dex < t && ascResult.agi < t) return;
+    this.ns.gang.ascendMember(name);
+    this.log("ASCEND", `${name.padEnd(15)} str:x${ascResult.str.toFixed(2)}  def:x${ascResult.def.toFixed(2)}  dex:x${ascResult.dex.toFixed(2)}  agi:x${ascResult.agi.toFixed(2)}`);
+  }
+
+  #equip(name, info) {
+    if (!this.config.buyEquipment) return;
+    const ns = this.ns;
+    for (const eq of ns.gang.getEquipmentNames()) {
+      if (info.upgrades.includes(eq) || info.augmentations.includes(eq)) continue;
+      if (!["Weapon", "Armor", "Vehicle", "Augmentation"].includes(ns.gang.getEquipmentType(eq))) continue;
+      if (ns.gang.getEquipmentCost(eq) > ns.getPlayer().money) continue;
+      ns.gang.purchaseEquipment(name, eq);
+      this.log("EQUIP", `${name.padEnd(15)} ${eq}`);
+    }
+  }
+
+  #assign(info, gangInfo, wantMoney) {
+    setTask(this.ns, info, this.#taskFor(info, gangInfo, wantMoney));
+  }
+
+  #process(name, gangInfo, wantMoney) {
+    const info = this.ns.gang.getMemberInformation(name);
+    this.#ascend(name);
+    this.#equip(name, info);
+    this.#assign(info, gangInfo, wantMoney);
+  }
+
+  // ── status ─────────────────────────────────────────────────────────────────────
+
+  #printStatus(gangInfo, members, wantMoney) {
+    const ns         = this.ns;
+    const taskCounts = {};
+    for (const name of members) {
+      const task = ns.gang.getMemberInformation(name).task;
+      taskCounts[task] = (taskCounts[task] ?? 0) + 1;
+    }
+    const taskSummary = Object.entries(taskCounts)
+      .map(([task, count]) => `${task}: ${count}`)
+      .join("  ");
+
+    this.log("STATUS",
+      `Members: ${String(members.length).padStart(2)}  ` +
+      `Respect: ${ns.format.number(gangInfo.respect, 2).padStart(10)}  ` +
+      `Territory: ${(gangInfo.territory * 100).toFixed(1).padStart(5)}%  ` +
+      `Mode: ${wantMoney ? "MONEY" : "RESPECT"}`
+    );
+    this.log("TASKS", taskSummary);
+  }
+
+  // ── tick ───────────────────────────────────────────────────────────────────────
+
   async tick() {
     const ns        = this.ns;
     const gangInfo  = ns.gang.getGangInformation();
     const members   = ns.gang.getMemberNames();
-    const config    = this.combatGangConfig;
-    const wantMoney = gangInfo.respect >= config.respectThreshold;
-
-    const territoryDelta = gangInfo.territory - this.lastTerritory;
-    if (Math.abs(territoryDelta) > 0.0001) {
-      const won = territoryDelta > 0;
-      this.log("CLASH",
-        `${won ? "WON" : "LOST"}  ` +
-        `${(this.lastTerritory * 100).toFixed(3)}% → ${(gangInfo.territory * 100).toFixed(3)}%  ` +
-        `(${won ? "+" : ""}${(territoryDelta * 100).toFixed(3)}%)`
-      );
-    }
-    this.lastTerritory = gangInfo.territory;
+    const wantMoney = gangInfo.respect >= this.config.respectThreshold;
 
     this.nameIndex = recruit(ns, this.names, this.nameIndex, "port");
-    const warfare  = updateWarfare(ns, gangInfo, members, config, "port");
-    processMembers(ns, gangInfo, members, warfare.warfareRoster, wantMoney, config, "port");
-    printStatus(ns, gangInfo, members, wantMoney, warfare, "port");
+    for (const name of members) this.#process(name, gangInfo, wantMoney);
+    this.#printStatus(gangInfo, members, wantMoney);
     this.log("TICK", `members: ${members.length}  respect: ${ns.format.number(gangInfo.respect, 2)}`);
   }
 }
 
 export async function main(ns) {
   ns.disableLog("ALL");
+  ns.ui.openTail();
   const engine = new CombatGangEngine(ns);
   while (true) {
     await engine.tick();

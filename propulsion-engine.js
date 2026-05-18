@@ -4,13 +4,14 @@ import { getConfig }     from "lib/config.js";
 import { quonfigHeight, quonfigTopPadding, quonfigWidth } from "./quonfig";
 
 const SUB_ENGINES = [
-  { name: "scout",    script: "engine-v2-scout.js"    },
-  { name: "batching", script: "engine-v2-batching.js" },
-  { name: "stats",    script: "engine-v2-stats.js"    },
-  { name: "botnet",   script: "engine-v2-botnet.js"   },
+  { name: "scout",        script: "engine-v2-scout.js"        },
+  { name: "batching",     script: "engine-v2-batching.js"     },
+  { name: "stats",        script: "engine-v2-stats.js"        },
+  { name: "botnet",       script: "engine-v2-botnet.js"       },
   { name: "combat-gang",  script: "engine-v2-combat-gang.js"  },
   { name: "hacking-gang", script: "engine-v2-hacking-gang.js" },
   { name: "hacknet",      script: "engine-v2-hacknet.js"      },
+  { name: "cortex",       script: "engine-v2-cortex.js"       },
 ];
 
 const LIFECYCLE_EVERY = 20; // ticks between spawn/kill checks (~5s at 250ms)

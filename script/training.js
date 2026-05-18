@@ -10,7 +10,7 @@
  * Usage: run singularity-training.js
  */
 
-const TARGET_LEVEL    = 200;
+const TARGET_LEVEL    = 165;
 const SLICE_MS        = 60_000;   // train each stat for this long per loop tick
 
 const COMBAT_CITY     = "Sector-12";
