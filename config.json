@@ -1,5 +1,4 @@
 {
-  "enable-engine-v2": { "type": "boolean", "value": true, "label": "Enable engine-v2" },
   "enable-scout": { "type": "boolean", "value": true, "label": "Enable Scout" },
   "enable-stats": { "type": "boolean", "value": true, "label": "Enable Stats" },
   "enable-batching": { "type": "boolean", "value": true, "label": "Enable Batching" },
@@ -9,6 +8,7 @@
   "enable-combat-gang": { "type": "boolean", "value": false, "label": "Enable Combat Gang" },
   "enable-hacking-gang": { "type": "boolean", "value": false, "label": "Enable Hacking Gang" },
   "enable-cortex": { "type": "boolean", "value": false, "label": "Enable Cortex" },
+  "enable-darknet": { "type": "boolean", "value": false, "label": "Enable Darknet" },
 
   "batching-forced-target": { "type": "string", "value": " ", "label": "Force Target" },
   "engine-free-home-ram": { "type": "number", "value": 70, "label": "Free home RAM (GB)" },
@@ -18,7 +18,7 @@
   "telepathy-size": { "type": "number", "value": 2, "label": "Telepathy GB shares" },
 
 
-  "hacknet-buy-limit": { "type": "number", "value": 12, "label": "Hacknet Max Nodes" },
+  "hacknet-buy-limit": { "type": "number", "value": 8, "label": "Hacknet Max Nodes" },
   "hacknet-budget-ratio": { "type": "number", "value": 0.25, "label": "Hacknet Budget Ratio" },
 
 
@@ -28,12 +28,22 @@
   "gang-buy-equipment": { "type": "boolean", "value": true, "label": "Buy Equipment" },
   "gang-respect-floor-cyberterrorism": { "type": "number", "value": 100, "label": "👨‍💻 Cyberterrorism Respect³" },
   "gang-respect-floor-terrorism": { "type": "number", "value": 100, "label": "🦹 Terrorism Respect³" },
-  "gang-ascension-equip-margin":    { "type": "number",  "value": 0.15, "label": "Equip stop margin (below ascend)" },
-  "gang-train-bottom-n":            { "type": "number",  "value": 3,    "label": "Train lowest-N combat" },
-  "gang-clash-enable-winchance":    { "type": "number",  "value": 0.55, "label": "Clash ON >= winChance" },
-  "gang-clash-disable-winchance":   { "type": "number",  "value": 0.50, "label": "Clash OFF < winChance" },
-  "gang-clash-min-defense":         { "type": "number",  "value": 300,  "label": "Min DEF for warfare in clash" },
-  "gang-flash-mob-margin-ms":       { "type": "number",  "value": 250,  "label": "Flash-mob lead time (ms)" },
+  "gang-ascension-equip-margin": { "type": "number", "value": 0.15, "label": "Equip stop margin (below ascend)" },
+  "gang-train-bottom-n": { "type": "number", "value": 3, "label": "Train lowest-N combat" },
+  "gang-clash-enable-winchance": { "type": "number", "value": 0.55, "label": "Clash ON >= winChance" },
+  "gang-clash-disable-winchance": { "type": "number", "value": 0.50, "label": "Clash OFF < winChance" },
+  "gang-clash-min-defense": { "type": "number", "value": 300, "label": "Min DEF for warfare in clash" },
+  "gang-flash-mob-margin-ms": { "type": "number", "value": 250, "label": "Flash-mob lead time (ms)" },
+
+
+  "cortex-target-hack-initial": { "type": "number", "value": 100, "label": "Target Hack Initial" },
+  "cortex-target-str": { "type": "number", "value": 165, "label": "Target STR" },
+  "cortex-target-def": { "type": "number", "value": 165, "label": "Target DEF" },
+  "cortex-target-dex": { "type": "number", "value": 165, "label": "Target DEX" },
+  "cortex-target-agi": { "type": "number", "value": 165, "label": "Target AGI" },
+  "cortex-target-cha": { "type": "number", "value": 100, "label": "Target CHA" },
+  "cortex-fallback-study": { "type": "boolean", "value": true, "label": "Fallback Train Hack" },
+  "cortex-fallback-work": { "type": "string", "value": "MegaCorp", "label": "Fallback Work" },
 
 
 
@@ -56,16 +66,10 @@
   "loop-delay-combat-gang": { "type": "number", "value": 10, "label": "Combat Gang" },
   "loop-delay-hacking-gang": { "type": "number", "value": 10, "label": "Hacking Gang" },
   "loop-delay-cortex": { "type": "number", "value": 10, "label": "Cortex" },
-
-
-  "cortex-target-hack-initial": { "type": "number", "value": 100, "label": "Target Hack Initial" },
-  "cortex-target-str": { "type": "number", "value": 165, "label": "Target STR" },
-  "cortex-target-def": { "type": "number", "value": 165, "label": "Target DEF" },
-  "cortex-target-dex": { "type": "number", "value": 165, "label": "Target DEX" },
-  "cortex-target-agi": { "type": "number", "value": 165, "label": "Target AGI" },
-  "cortex-target-cha": { "type": "number", "value": 100, "label": "Target CHA" },
-  "cortex-fallback-study": { "type": "boolean", "value": true, "label": "Fallback Train Hack" },
-  "cortex-fallback-work": { "type": "string", "value": "MegaCorp", "label": "Fallback Work" },
+  "loop-delay-darknet": { "type": "number", "value": 10, "label": "Darknet" },
 
   "last-one": null
 }
+
+
+

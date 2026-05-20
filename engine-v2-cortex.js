@@ -7,16 +7,17 @@ import { getServers, serverInstallBackdoor }    from "lib/scout.js";
 
 /** All hacking programs — "buy" ones are purchased via TOR darkweb, "create" ones are coded by the player. */
 const PROGRAMS = [
-  { name: "BruteSSH.exe",       hackReq:   50, cost:           500_000, action: "buy"    },
-  { name: "FTPCrack.exe",       hackReq:  100, cost:         1_500_000, action: "buy"    },
-  { name: "relaySMTP.exe",      hackReq:  250, cost:         5_000_000, action: "buy"    },
-  { name: "HTTPWorm.exe",       hackReq:  500, cost:        30_000_000, action: "buy"    },
-  { name: "SQLInject.exe",      hackReq:  750, cost:       250_000_000, action: "buy"    },
-  { name: "AutoLink.exe",       hackReq:   25, cost:         1_000_000, action: "create" },
-  { name: "ServerProfiler.exe", hackReq:   75, cost:           500_000, action: "create" },
-  { name: "DeepscanV1.exe",     hackReq:   75, cost:           500_000, action: "create" },
-  { name: "DeepscanV2.exe",     hackReq:  400, cost:        25_000_000, action: "create" },
-  { name: "Formulas.exe",       hackReq: 1000, cost:     1_000_000_000, action: "create" },
+  { name: "BruteSSH.exe",           hackReq:   50, cost:       500_000, action: "buy"    },
+  { name: "FTPCrack.exe",           hackReq:  100, cost:     1_500_000, action: "buy"    },
+  { name: "relaySMTP.exe",          hackReq:  250, cost:     5_000_000, action: "buy"    },
+  { name: "HTTPWorm.exe",           hackReq:  500, cost:    30_000_000, action: "buy"    },
+  { name: "SQLInject.exe",          hackReq:  750, cost:   250_000_000, action: "buy"    },
+  { name: "DarkscapeNavigator.exe", hackReq: null, cost:    50_000_000, action: "buy"    }, 
+  { name: "AutoLink.exe",           hackReq:   25, cost:     1_000_000, action: "create" },
+  { name: "ServerProfiler.exe",     hackReq:   75, cost:       500_000, action: "create" },
+  { name: "DeepscanV1.exe",         hackReq:   75, cost:       500_000, action: "create" },
+  { name: "DeepscanV2.exe",         hackReq:  400, cost:    25_000_000, action: "create" },
+  { name: "Formulas.exe",           hackReq: 1000, cost: 1_000_000_000, action: "create" },
 ];
 
 /** Maps company name to the city where it's located, used to travel before applying/working. */

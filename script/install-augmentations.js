@@ -1,3 +1,5 @@
 export async function main(ns) {
-  ns.singularity.installAugmentations("propulsion-engine.js");
+  ns.killall("home");
+  ns.tprint("KILL  all scripts on home");
+  ns.singularity.installAugmentations("quonfig.js");
 }

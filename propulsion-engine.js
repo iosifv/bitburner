@@ -13,6 +13,7 @@ const SUB_ENGINES = [
   { name: "hacking-gang", script: "engine-v2-hacking-gang.js" },
   { name: "hacknet",      script: "engine-v2-hacknet.js"      },
   { name: "cortex",       script: "engine-v2-cortex.js"       },
+  { name: "darknet",      script: "engine-v2-darknet.js"      },
 ];
 
 const LIFECYCLE_EVERY = 20; // ticks between spawn/kill checks (~5s at 250ms)
@@ -33,11 +34,6 @@ export async function main(ns) {
   ns.ui.openTail();
   ns.ui.resizeTail(engineWidth, quonfigHeight);
   ns.ui.moveTail(ns.ui.windowSize()[0] - quonfigWidth - engineWidth - 1, 20);
-
-  if (!getConfig(ns, "enable-engine-v2")) {
-    log(ns, "print", "ENGINE-V2", "HALT", "master switch is off — exiting");
-    return;
-  }
 
   log(ns, "print", "ENGINE-V2", "START", "orchestrator online");
   bitnodeReset(ns);

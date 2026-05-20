@@ -86,6 +86,7 @@ export async function main(ns) {
   ns.ui.resizeTail(quonfigWidth, quonfigHeight);
   ns.ui.moveTail(ns.ui.windowSize()[0] - quonfigWidth - 1, quonfigTopPadding);
 
+  ns.clearLog();
   const initialCfg = loadCfg(ns);
   ns.printRaw(React.createElement(ConfigApp, { initialCfg }));
 
