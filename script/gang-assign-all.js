@@ -5,6 +5,7 @@ const TASKS = [
   "Mug People",
   "Armed Robbery",
   "Traffick Illegal Arms",
+  "Human Trafficking",
   "Terrorism",
   "Vigilante Justice",
   "Territory Warfare",

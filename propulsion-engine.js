@@ -1,6 +1,7 @@
 // Part of the engine-v2 system — engine-v2.js: orchestrator (port drain + spawn/kill supervisor)
 import { LOG_PORT, log } from "lib/logger.js";
 import { getConfig }     from "lib/config.js";
+import { bitnodeReset }  from "lib/scout.js";
 import { quonfigHeight, quonfigTopPadding, quonfigWidth } from "./quonfig";
 
 const SUB_ENGINES = [
@@ -39,6 +40,7 @@ export async function main(ns) {
   }
 
   log(ns, "print", "ENGINE-V2", "START", "orchestrator online");
+  bitnodeReset(ns);
 
   let tick       = 0;
   let logFilters = buildLogFilters(ns);
@@ -65,8 +67,14 @@ export async function main(ns) {
         const running = ns.isRunning(script, "home");
         if (enabled && !running) {
           const pid = ns.exec(script, "home");
-          log(ns, "print", "ENGINE-V2", pid ? "SPAWN" : "WARN",
-            `${script}${pid ? `  pid:${pid}` : "  exec() failed"}`);
+          if (pid) {
+            log(ns, "print", "ENGINE-V2", "SPAWN", `${script}  pid:${pid}`);
+          } else {
+            log(ns, "print", "ENGINE-V2", "WARN", `${script}  exec() failed — killing spores on home to free RAM`);
+            for (const proc of ns.ps("home")) {
+              if (proc.filename.startsWith("spores/")) ns.kill(proc.pid);
+            }
+          }
         }
         if (!enabled && running) {
           ns.scriptKill(script, "home");

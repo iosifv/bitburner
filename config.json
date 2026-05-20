@@ -28,6 +28,12 @@
   "gang-buy-equipment": { "type": "boolean", "value": true, "label": "Buy Equipment" },
   "gang-respect-floor-cyberterrorism": { "type": "number", "value": 100, "label": "👨‍💻 Cyberterrorism Respect³" },
   "gang-respect-floor-terrorism": { "type": "number", "value": 100, "label": "🦹 Terrorism Respect³" },
+  "gang-ascension-equip-margin":    { "type": "number",  "value": 0.15, "label": "Equip stop margin (below ascend)" },
+  "gang-train-bottom-n":            { "type": "number",  "value": 3,    "label": "Train lowest-N combat" },
+  "gang-clash-enable-winchance":    { "type": "number",  "value": 0.55, "label": "Clash ON >= winChance" },
+  "gang-clash-disable-winchance":   { "type": "number",  "value": 0.50, "label": "Clash OFF < winChance" },
+  "gang-clash-min-defense":         { "type": "number",  "value": 300,  "label": "Min DEF for warfare in clash" },
+  "gang-flash-mob-margin-ms":       { "type": "number",  "value": 250,  "label": "Flash-mob lead time (ms)" },
 
 
 
@@ -50,7 +56,16 @@
   "loop-delay-combat-gang": { "type": "number", "value": 10, "label": "Combat Gang" },
   "loop-delay-hacking-gang": { "type": "number", "value": 10, "label": "Hacking Gang" },
   "loop-delay-cortex": { "type": "number", "value": 10, "label": "Cortex" },
-  "cortex-fallback-study": { "type": "boolean", "value": true, "label": "Cortex: Study CS Fallback" },
+
+
+  "cortex-target-hack-initial": { "type": "number", "value": 100, "label": "Target Hack Initial" },
+  "cortex-target-str": { "type": "number", "value": 165, "label": "Target STR" },
+  "cortex-target-def": { "type": "number", "value": 165, "label": "Target DEF" },
+  "cortex-target-dex": { "type": "number", "value": 165, "label": "Target DEX" },
+  "cortex-target-agi": { "type": "number", "value": 165, "label": "Target AGI" },
+  "cortex-target-cha": { "type": "number", "value": 100, "label": "Target CHA" },
+  "cortex-fallback-study": { "type": "boolean", "value": true, "label": "Fallback Train Hack" },
+  "cortex-fallback-work": { "type": "string", "value": "MegaCorp", "label": "Fallback Work" },
 
   "last-one": null
 }

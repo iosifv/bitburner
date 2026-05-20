@@ -90,6 +90,7 @@ Paste error messages here as they appear in-game. Format: `old → new`.
 | `ns.formatRam(v)` | `ns.format.ram(v)` |
 | `ns.formatNumber(v)` | `ns.format.number(v)` |
 | `ns.tail()` | `ns.ui.openTail()` |
+| `ns.gang.getOtherGangInformation()` | `ns.gang.getAllGangInformation()` |
 
 ## Bitburner API Notes
 

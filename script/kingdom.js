@@ -20,7 +20,7 @@ export async function main(ns) {
   const bestTarget = victims.sort((a, b) => b.score - a.score)[0]?.name;
 
   // ── Header ───────────────────────────────────────────────────────────────
-  ns.tprint(
+  ns.tprintRaw(
     `${"SERVER".padEnd(52)}` +
     `${"LVL".padStart(8)} | ` +
     `${"RAM".padStart(8)} | ` +
@@ -34,7 +34,7 @@ export async function main(ns) {
     `${"SCORE".padStart(10)} | ` +
     `FLAGS`
   );
-  ns.tprint("─".repeat(167));
+  ns.tprintRaw("─".repeat(167));
 
   // ── Rows — DFS order preserved ───────────────────────────────────────────
   for (const s of servers) {
@@ -75,7 +75,7 @@ export async function main(ns) {
     const victimFlag   = s.victim     ? "🐑" : "  ";
     const backdoorFlag = s.backdoored ? "🚪" : "  ";
 
-    ns.tprint(
+    ns.tprintRaw(
       `${indentName.padEnd(52, "·")}` +
       `${st.padStart(8)} | ` +
       `${ramStr.padStart(8)} | ` +
@@ -95,8 +95,8 @@ export async function main(ns) {
   ns.tprint("─".repeat(167));
   const zombies = servers.filter(s => s.zombie);
 
-  ns.tprint(`${servers.length} servers  —  Zombies: ${zombies.length}  Victims: ${victims.length}`);
-  ns.tprint(`Total RAM: ${servers.reduce((sum, s) => sum + s.serverMaxRam, 0)} GB`);
-  ns.tprint(`Best target: ${bestTarget ?? "none"}  (score: ${victims[0]?.score.toFixed(2) ?? "-"})`);
-  ns.tprint(`Legend:  🧟 zombie (worker)  🐑 victim (target)  🚪 backdoored  🍏 hackable  🍎 locked  ★ best target`);
+  ns.tprintRaw(`${servers.length} servers  —  Zombies: ${zombies.length}  Victims: ${victims.length}`);
+  ns.tprintRaw(`Total RAM: ${servers.reduce((sum, s) => sum + s.serverMaxRam, 0)} GB`);
+  ns.tprintRaw(`Best target: ${bestTarget ?? "none"}  (score: ${victims[0]?.score.toFixed(2) ?? "-"})`);
+  ns.tprintRaw(`Legend:  🧟 zombie (worker)  🐑 victim (target)  🚪 backdoored  🍏 hackable  🍎 locked  ★ best target`);
 }

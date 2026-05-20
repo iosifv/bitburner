@@ -17,28 +17,28 @@ export async function main(ns) {
     "w0r1d_d43m0n",
   ];
 
-  // const PROGRAMS = [
-  //   "BruteSSH.exe", "FTPCrack.exe", "relaySMTP.exe", "HTTPWorm.exe", "SQLInject.exe",
-  //   "DarkscapeNavigator.exe"
-  // ];
+  const PROGRAMS = [
+    "BruteSSH.exe", "FTPCrack.exe", "relaySMTP.exe", "HTTPWorm.exe", "SQLInject.exe",
+    "DarkscapeNavigator.exe"
+  ];
 
-  // // ── Buy TOR + programs ───────────────────────────────────────────────────
-  // ns.tprint("─".repeat(50));
+  // ── Buy TOR + programs ───────────────────────────────────────────────────
+  ns.tprint("─".repeat(50));
 
-  //  if (ns.singularity.purchaseTor()) {
-  //   ns.tprint("TOR router ready");
-  // } else {
-  //   ns.tprint("Not enough money for TOR");
-  // }
+   if (ns.singularity.purchaseTor()) {
+    ns.tprint("TOR router ready");
+  } else {
+    ns.tprint("Not enough money for TOR");
+  }
 
-  // for (const prog of PROGRAMS) {
-  //   if (!ns.singularity.purchaseProgram(prog)) {
-  //     ns.tprint(`Failed to purchase ${prog}`);
-  //   } else {
-  //     ns.tprint(`Purchased ${prog}`);
-  //   }
-  // }
-  // ns.tprint("─".repeat(50));
+  for (const prog of PROGRAMS) {
+    if (!ns.singularity.purchaseProgram(prog)) {
+      ns.tprint(`Failed to purchase ${prog}`);
+    } else {
+      ns.tprint(`Purchased ${prog}`);
+    }
+  }
+  ns.tprint("─".repeat(50));
   
   // ── Hack targets ─────────────────────────────────────────────────────────
   const raw = ns.read("servers.json");
