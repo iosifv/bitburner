@@ -21,7 +21,7 @@ const NAMES = [
 
 const STATE_VIGILANTE = {
   name: "VIGILANTE",
-  shouldRun: (ctx)       => ctx.wantedRecovery,
+  shouldRun: (ctx, info) => ctx.vigilanteSquad.has(info.name),
   task:      ()          => "Vigilante Justice",
 };
 
@@ -69,8 +69,10 @@ class CombatGangEngine extends EngineStoke {
     super(ns, "combat-gang");
     this.names          = NAMES;
     this.nameIndex      = ns.gang.getMemberNames().length;
-    this.wantedRecovery  = false;
+    this.vigilanteSize   = 0;
+    this.prevWanted      = null;
     this.tickDurationMs  = 2000;
+    this.tickStartTime   = Date.now();
     this.prevTerritory   = null;
     this.prevPower       = null;
     renameMembers(ns, NAMES);
@@ -102,24 +104,47 @@ class CombatGangEngine extends EngineStoke {
     const members  = ns.gang.getMemberNames();
     const infoMap  = Object.fromEntries(members.map(n => [n, ns.gang.getMemberInformation(n)]));
 
+    this.#updateVigilanteSize(gangInfo, members.length, cfg);
+
     const scored = members
       .map(n => ({ name: n, score: combatScore(infoMap[n]) }))
       .sort((a, b) => a.score - b.score);
-    const bottomN      = Math.min(cfg.trainBottomN, members.length);
-    const bottomCombat = new Set(scored.slice(0, bottomN).map(x => x.name));
+    const bottomN        = Math.min(cfg.trainBottomN, members.length);
+    const bottomCombat   = new Set(scored.slice(0, bottomN).map(x => x.name));
+    const vigilanteSquad = new Set(
+      scored.slice().reverse().slice(0, this.vigilanteSize).map(x => x.name)
+    );
 
     const winChances = getClashWinChances(ns);
     const winValues  = Object.values(winChances);
     const minWin     = winValues.length > 0 ? Math.min(...winValues) : 1;
 
     return {
-      gangInfo, members, infoMap, bottomCombat,
-      wantMoney:      gangInfo.respect >= cfg.respectThreshold,
-      wantedRecovery: this.wantedRecovery,
+      gangInfo, members, infoMap, bottomCombat, vigilanteSquad,
+      wantMoney: gangInfo.respect >= cfg.respectThreshold,
       winChances, minWin,
       clashesOn: gangInfo.territoryWarfareEngaged,
       config: cfg,
     };
+  }
+
+  // ── vigilante controller ───────────────────────────────────────────────────
+
+  #updateVigilanteSize(gi, memberCount, cfg) {
+    const triggerEff = 1 - cfg.wantedPenaltyThreshold;
+    const healthyEff = 0.99;
+    const atFloor    = gi.wantedLevel <= 1.01;
+
+    if (atFloor || gi.wantedPenalty >= healthyEff) {
+      this.vigilanteSize = Math.max(0, this.vigilanteSize - 1);
+    } else if (gi.wantedPenalty < triggerEff) {
+      const rising = this.prevWanted !== null && gi.wantedLevel > this.prevWanted;
+      if (this.vigilanteSize === 0)  this.vigilanteSize = 1;
+      else if (rising)               this.vigilanteSize = Math.min(memberCount, this.vigilanteSize + 1);
+      // falling / steady → hold
+    }
+    // penalty in [triggerEff, healthyEff) → hold (hysteresis band)
+    this.prevWanted = gi.wantedLevel;
   }
 
   // ── clash toggle ───────────────────────────────────────────────────────────
@@ -147,13 +172,10 @@ class CombatGangEngine extends EngineStoke {
   #shouldEquip(info) {
     if (!this.config.buyEquipment) return false;
     const { ascensionThreshold: t, ascensionEquipMargin: margin } = this.config;
-    const curMax = Math.max(
-      info.str_asc_mult ?? 1,
-      info.def_asc_mult ?? 1,
-      info.dex_asc_mult ?? 1,
-      info.agi_asc_mult ?? 1,
-    );
-    return curMax < (t - margin);
+    const a = this.ns.gang.getAscensionResult(info.name);
+    if (!a) return true;
+    const nextMax = Math.max(a.str ?? 0, a.def ?? 0, a.dex ?? 0, a.agi ?? 0);
+    return nextMax < (t - margin);
   }
 
   #ascend(name) {
@@ -200,15 +222,18 @@ class CombatGangEngine extends EngineStoke {
   // ── flash-mob warfare burst ────────────────────────────────────────────────
 
   async #flashMob(ctx) {
-    const margin = ctx.config.flashMobMarginMs;
-    await this.ns.sleep(Math.max(0, this.tickDurationMs - margin));
+    const margin  = ctx.config.flashMobMarginMs;
+    const elapsed = Date.now() - this.tickStartTime;
+    await this.ns.sleep(Math.max(0, this.tickDurationMs - margin - elapsed));
 
     for (const name of ctx.members) {
       const info = ctx.infoMap[name];
+      if (ctx.vigilanteSquad.has(name)) continue;
       if (ctx.clashesOn && info.def < ctx.config.clashMinDefense) continue;
       this.ns.gang.setMemberTask(name, "Territory Warfare");
     }
     this.tickDurationMs = await this.ns.gang.nextUpdate();
+    this.tickStartTime  = Date.now();
   }
 
   // ── status ─────────────────────────────────────────────────────────────────
@@ -236,7 +261,7 @@ class CombatGangEngine extends EngineStoke {
     this.log("WANTED",
       `level:${gi.wantedLevel.toFixed(4).padStart(10)}  ` +
       `penalty:${(gi.wantedPenalty * 100).toFixed(2).padStart(7)}%  ` +
-      `recovery:${ctx.wantedRecovery ? "ON " : "OFF"}  ` +
+      `squad:${String(this.vigilanteSize).padStart(2)}  ` +
       `threshold:${((1 - ctx.config.wantedPenaltyThreshold) * 100).toFixed(0)}%`
     );
     this.log("BOTTOM", bottom || "(none)");
@@ -260,13 +285,6 @@ class CombatGangEngine extends EngineStoke {
     const ns      = this.ns;
     const ctx     = this.#computeContext();
 
-    const gi = ctx.gangInfo;
-    // only enter recovery when wanted is actually above floor — penalty of 0.5 at gang start
-    // (respect=1, wanted=1) is structural, not from buildup; don't deadlock on it
-    if (gi.wantedLevel > 1.01 && gi.wantedPenalty < 1 - ctx.config.wantedPenaltyThreshold) this.wantedRecovery = true;
-    if (gi.wantedPenalty >= 0.99 || gi.wantedLevel <= 1.01)                                 this.wantedRecovery = false;
-    ctx.wantedRecovery = this.wantedRecovery;
-
     this.nameIndex = recruit(ns, this.names, this.nameIndex, "port");
     this.#maybeToggleClashes(ctx);
     for (const name of ctx.members) this.#process(name, ctx);
@@ -281,6 +299,7 @@ export async function main(ns) {
   const engine = new CombatGangEngine(ns);
   // sync to gang tick cadence before entering the loop
   engine.tickDurationMs = await ns.gang.nextUpdate();
+  engine.tickStartTime  = Date.now();
   while (true) {
     await engine.tick();
   }

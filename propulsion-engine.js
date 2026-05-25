@@ -62,13 +62,20 @@ export async function main(ns) {
         const enabled = getConfig(ns, `enable-${name}`);
         const running = ns.isRunning(script, "home");
         if (enabled && !running) {
-          const pid = ns.exec(script, "home");
+          let pid = ns.exec(script, "home");
           if (pid) {
             log(ns, "print", "ENGINE-V2", "SPAWN", `${script}  pid:${pid}`);
           } else {
             log(ns, "print", "ENGINE-V2", "WARN", `${script}  exec() failed — killing spores on home to free RAM`);
             for (const proc of ns.ps("home")) {
               if (proc.filename.startsWith("spores/")) ns.kill(proc.pid);
+            }
+            
+            pid = ns.exec(script, "home");
+            if (pid) {
+              log(ns, "print", "ENGINE-V2", "SPAWN", `${script}  pid:${pid} (retry after spore kill)`);
+            } else {
+              log(ns, "print", "ENGINE-V2", "ERROR", `${script}  still not enough RAM after killing spores`);
             }
           }
         }

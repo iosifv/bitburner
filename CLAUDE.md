@@ -91,6 +91,8 @@ Paste error messages here as they appear in-game. Format: `old → new`.
 | `ns.formatNumber(v)` | `ns.format.number(v)` |
 | `ns.tail()` | `ns.ui.openTail()` |
 | `ns.gang.getOtherGangInformation()` | `ns.gang.getAllGangInformation()` |
+| `ns.singularity.getUpgradeHomeCoreCost()` | does not exist — function not in API |
+| `ns.singularity.upgradeHomeCores()` | does not exist — function not in API |
 
 ## Bitburner API Notes
 

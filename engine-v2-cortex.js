@@ -16,28 +16,10 @@ const PROGRAMS = [
   { name: "AutoLink.exe",           hackReq:   25, cost:     1_000_000, action: "create" },
   { name: "ServerProfiler.exe",     hackReq:   75, cost:       500_000, action: "create" },
   { name: "DeepscanV1.exe",         hackReq:   75, cost:       500_000, action: "create" },
-  { name: "DeepscanV2.exe",         hackReq:  400, cost:    25_000_000, action: "create" },
-  { name: "Formulas.exe",           hackReq: 1000, cost: 1_000_000_000, action: "create" },
+  // { name: "DeepscanV2.exe",         hackReq:  400, cost:    25_000_000, action: "create" },
+  // { name: "Formulas.exe",           hackReq: 1000, cost: 1_000_000_000, action: "create" },
 ];
 
-/** Maps company name to the city where it's located, used to travel before applying/working. */
-const COMPANY_CITY = {
-  "MegaCorp":               "Sector-12",
-  "Blade Industries":       "Sector-12",
-  "Four Sigma":             "Sector-12",
-  "Icarus Microsystems":    "Sector-12",
-  "OmniTek Incorporated":   "Sector-12",
-  "NWO":                    "Sector-12",
-  "ECorp":                  "Aevum",
-  "AeroCorp":               "Aevum",
-  "Fulcrum Technologies":   "Aevum",
-  "Galactic Cybersystems":  "Aevum",
-  "CompuTek":               "Volhaven",
-  "HeliosLabs":             "Volhaven",
-  "KuaiGong International": "Chongqing",
-  "Global Pharmaceuticals": "New Tokyo",
-  "Storm Technologies":     "Ishima",
-};
 
 const BACKDOOR_TARGETS = [
   "CSEC",
@@ -52,8 +34,9 @@ const CITIES   = ["Sector-12", "Aevum", "Volhaven", "Chongqing", "New Tokyo", "I
 const TOR_COST = 200_000;
 const GYM      = "Powerhouse Gym";
 const GYM_CITY = "Sector-12";
-const UNI      = "ZB Institute of Technology";
-const UNI_CITY = "Volhaven";
+const UNI                   = "ZB Institute of Technology";
+const UNI_CITY              = "Volhaven";
+const UNI_ALGORITHMS_MONEY  = 1_000_000_000;
 
 const UNIVERSITIES = {
   "Sector-12": "Rothman University",
@@ -62,6 +45,12 @@ const UNIVERSITIES = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Parses "str,def,dex,agi" into { targetStr, targetDef, targetDex, targetAgi }. */
+function parseCombatTarget(value) {
+  const [str, def, dex, agi] = String(value).split(",").map(Number);
+  return { targetStr: str, targetDef: def, targetDex: dex, targetAgi: agi };
+}
 
 /** Travels to a city only if the player isn't already there, avoiding the travel cost on idle ticks. */
 function travelIfNeeded(ns, city) {
@@ -74,84 +63,26 @@ function travelIfNeeded(ns, city) {
  * Returns true if a course was started, false if broke and stranded.
  */
 function universityTick(ns, course) {
-  const player = ns.getPlayer();
-  const local  = UNIVERSITIES[player.city];
-  if (local) {
-    ns.singularity.universityCourse(local, course, false);
-    return true;
+  const player  = ns.getPlayer();
+  const useZB   = player.money >= UNI_ALGORITHMS_MONEY;
+  const target  = useZB ? "Algorithms" : course;
+
+  const work = ns.singularity.getCurrentWork();
+  if (work?.type === "CLASS" && work?.className === target) return true;
+
+  if (useZB) {
+    travelIfNeeded(ns, UNI_CITY);
+    return ns.singularity.universityCourse(UNI, "Algorithms", false);
   }
-  if (player.money >= TOR_COST) {
-    ns.singularity.travelToCity(UNI_CITY);
-    ns.singularity.universityCourse(UNI, course, false);
-    return true;
-  }
-  return false;
+
+  const local = UNIVERSITIES[player.city];
+  if (local) return ns.singularity.universityCourse(local, course, false);
+
+  // No local university — travel to preferred uni (Volhaven). Travel is cheap so no money gate.
+  ns.singularity.travelToCity(UNI_CITY);
+  return ns.singularity.universityCourse(UNI, course, false);
 }
 
-/**
- * Scores a job field based on the player's skill distribution.
- * Higher score = better fit. Weights are approximations of in-game XP formulas.
- * 
- * @param {string} field - Job field name (e.g. "software", "management")
- * @param {number} hack - Hacking skill level
- * @param {number} cha - Charisma skill level
- * @param {number} combat - Sum of str + def + dex + agi
- * @param {number} dex - Dexterity skill level
- * @param {number} agi - Agility skill level
- * @returns {number} Score — higher is better
- */
-function fieldScore(field, hack, cha, combat, dex, agi) {
-  const f = field.toLowerCase();
-  if (f.includes("software") && !f.includes("consultant")) return hack   * 2.0;
-  if (f === "it")                                          return hack   * 1.6;
-  if (f.includes("network"))                               return hack   * 1.4;
-  if (f === "engineer")                                    return hack   * 1.5 + combat * 0.2;
-  if (f.includes("research"))                              return hack   * 1.5;
-  if (f.includes("software") && f.includes("consultant"))  return hack   * 1.0;
-  if (f === "management")                                  return cha    * 2.0;
-  if (f.includes("business") && !f.includes("consultant")) return cha    * 1.8;
-  if (f.includes("business") && f.includes("consultant"))  return cha    * 1.4;
-  if (f === "agent")                                       return cha    * 1.0 + (dex + agi) * 0.4;
-  if (f === "operations")                                  return combat * 1.6 + cha * 0.4;
-  if (f === "security")                                    return combat * 1.5;
-  if (f.includes("field"))                                 return combat * 1.8;
-  return (hack + cha + combat) * 0.2;
-}
-
-/**
- * Returns the job field that best matches the player's current skills.
- * Falls back to "software" if the fields list is empty.
- * 
- * @param {object} player - NS player object
- * @param {string[]} fields - Available job fields to rank
- * @returns {string} The highest-scoring field name
- */
-function bestFitField(player, fields) {
-  const s      = player.skills;
-  const hack   = s.hacking;
-  const cha    = s.charisma;
-  const combat = s.strength + s.defense + s.dexterity + s.agility;
-  return [...fields]
-    .sort((a, b) => fieldScore(b, hack, cha, combat, s.dexterity, s.agility)
-                  - fieldScore(a, hack, cha, combat, s.dexterity, s.agility))[0]
-    ?? "software";
-}
-
-/**
- * Returns all available job field names from ns.enums, falling back to a hardcoded list.
- * ns.enums is unavailable at module level so this must be called at runtime.
- */
-function ns_getJobFields(ns) {
-  const fromEnums = ns?.enums?.JobField
-    ? Object.values(ns.enums.JobField).filter(v => typeof v === "string")
-    : [];
-  return fromEnums.length ? fromEnums : [
-    "software", "software consultant", "it", "security engineer",
-    "network engineer", "business", "business consultant",
-    "research & development", "management", "security",
-    "agent", "employee", "part-time employee",
-  ];
-}
 
 /** Programs that can be purchased from the TOR darkweb market. */
 const buyablePrograms   = () => PROGRAMS.filter(p => p.action === "buy");
@@ -200,20 +131,43 @@ const stateBuyPrograms = {
     ns.singularity.purchaseTor();
     for (const p of buyablePrograms()) {
       if (!ns.fileExists(p.name, "home")) {
-        ns.singularity.purchaseProgram(p.name);
-        ns.print(`[BUY-PROGRAMS]  purchased ${p.name}`);
+        const result = ns.singularity.purchaseProgram(p.name);
+        if (result) {
+          ns.print(`[BUY-PROGRAMS]  purchased ${p.name}`);
+        }
       }
     }
   },
 };
 
-const stateTrainCombat = {
-  name: "TRAIN-COMBAT",
-  shouldRun: ({ player, config }) =>
+const stateUpgradeHome = {
+  name: "UPGRADE-HOME",
+  shouldRun: ({ ns, player }) => ns.singularity.getUpgradeHomeRamCost() <= player.money,
+  tick: ({ ns, player }) => {
+    const ramCost = ns.singularity.getUpgradeHomeRamCost();
+    const ok = ns.singularity.upgradeHomeRam();
+    if (ok) ns.print(`[UPGRADE-HOME]  RAM upgraded  (cost: ${ns.format.number(ramCost)})`);
+  },
+};
+
+const stateTrainCombatCondition = ({ player, config, ns }) => {
+  if (ns.heart.break() <= -54_000) {
+    return false;
+  }
+  if (
     player.skills.strength  < config.targetStr ||
     player.skills.defense   < config.targetDef ||
     player.skills.dexterity < config.targetDex ||
-    player.skills.agility   < config.targetAgi,
+    player.skills.agility   < config.targetAgi
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const stateTrainCombat = {
+  name: "TRAIN-COMBAT",
+  shouldRun: stateTrainCombatCondition,
   tick: ({ ns, player, config }) => {
     travelIfNeeded(ns, GYM_CITY);
     const { strength: str, defense: def, dexterity: dex, agility: agi } = player.skills;
@@ -245,7 +199,7 @@ const stateCreateProgram = {
 
 const stateTrainHack = {
   name: "TRAIN-HACK",
-  shouldRun: ({ config }) => config.fallbackStudy,
+  shouldRun: () => true,
   tick: ({ ns }) => { universityTick(ns, "Computer Science"); },
 };
 
@@ -293,17 +247,18 @@ const stateRandomTravel = {
   },
 };
 
-const stateWorkCompany = {
-  name: "WORK-COMPANY",
-  shouldRun: () => true,
-  tick: ({ ns, player, work, config }) => {
-    const company = config.company;
-    if (work?.type === "COMPA. NY" && work?.companyName === company) return;
-    const city = COMPANY_CITY[company];
-    if (city) travelIfNeeded(ns, city);
-    const field = bestFitField(player, ns_getJobFields(ns));
-    ns.singularity.applyToCompany(company, field);
-    ns.singularity.workForCompany(company, false);
+
+const KARMA_HOMICIDE_TARGET = -54000;
+
+const stateHomicide = {
+  name: "HOMICIDE",
+  shouldRun: ({ ns }) => ns.heart.break() > KARMA_HOMICIDE_TARGET,
+  tick: ({ ns }) => {
+    const work = ns.singularity.getCurrentWork();
+    if (work?.type === "CRIME" && work?.crimeType === "Homicide") {
+      return;
+    }
+    ns.singularity.commitCrime("Homicide", false);
   },
 };
 
@@ -311,15 +266,18 @@ const stateWorkCompany = {
 const STATES_ORDER = [
   stateJoinFaction,
   stateBuyPrograms,
+  stateUpgradeHome,
   stateTrainHackInitial,
   stateBackdoor,
   stateTrainCombat,
   stateTrainCha,
   stateRandomTravel,
   stateCreateProgram,
+  stateHomicide,
   stateTrainHack,
-  stateWorkCompany,
 ];
+
+
 
 // ── Engine ────────────────────────────────────────────────────────────────────
 
@@ -329,6 +287,9 @@ const STATES_ORDER = [
  * Priority order is defined by STATES_ORDER.
  */
 class CortexEngine extends EngineStoke {
+  #prevState = null;
+  #stateCounter = 0;
+
   constructor(ns) {
     super(ns, "cortex");
   }
@@ -336,14 +297,9 @@ class CortexEngine extends EngineStoke {
   get config() {
     const ns = this.ns;
     return {
-      fallbackStudy:      getConfig(ns, "cortex-fallback-study"),
-      targetStr:          getConfig(ns, "cortex-target-str"),
-      targetDef:          getConfig(ns, "cortex-target-def"),
-      targetDex:          getConfig(ns, "cortex-target-dex"),
-      targetAgi:          getConfig(ns, "cortex-target-agi"),
+      ...parseCombatTarget(getConfig(ns, "cortex-target-combat")),
       targetCha:          getConfig(ns, "cortex-target-cha"),
       targetHackInitial:  getConfig(ns, "cortex-target-hack-initial"),
-      company:            getConfig(ns, "cortex-fallback-work"),
     };
   }
 
@@ -359,16 +315,28 @@ class CortexEngine extends EngineStoke {
     const ns  = this.ns;
     const context = {
       ns,
-      player: ns.getPlayer(),
-      work:   ns.singularity.getCurrentWork(),
-      config: this.config,
+      player:    ns.getPlayer(),
+      work:      ns.singularity.getCurrentWork(),
+      config:    this.config,
+      prevState: this.#prevState,
     };
 
     for (const state of STATES_ORDER) {
       if (state.shouldRun(context)) {
         await state.tick(context);
+
+        if (state !== this.#prevState) {
+          if (this.#prevState) {
+            this.ns.print(`[${this.#prevState.name}] - ${this.#stateCounter}`);
+          }
+          this.#stateCounter = 1;
+        } else {
+          this.#stateCounter++;
+        }
+
         this.log(state.name, this.#statusLine(context));
-        this.ns.print(`[${state.name}]`);
+
+        this.#prevState = state;
         return;
       }
     }
