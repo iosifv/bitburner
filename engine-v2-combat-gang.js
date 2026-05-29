@@ -25,10 +25,17 @@ const STATE_VIGILANTE = {
   task:      ()          => "Vigilante Justice",
 };
 
+const TRAIN_MIN_SCORE = 600;
+
 const STATE_TRAIN_BOTTOM = {
   name: "TRAIN-BOTTOM",
-  shouldRun: (ctx, info) => ctx.bottomCombat.has(info.name),
-  task:      ()          => "Train Combat",
+  shouldRun: (ctx, info) => {
+    // Always train members too weak to contribute — including just-ascended members
+    if (combatScore(info) < TRAIN_MIN_SCORE) return true;
+    // Full-gang rotation: train the weakest N members
+    return !ctx.notFullCapacity && ctx.bottomCombat.has(info.name);
+  },
+  task: () => "Train Combat",
 };
 
 // Push members toward Human Trafficking for respect generation before the terrorism floor is met
@@ -39,6 +46,20 @@ const STATE_RESPECT = {
     combatScore(info) >= 200 &&
     ctx.gangInfo.respect < ctx.config.terrorismRespectFloor,
   task: () => "Human Trafficking",
+};
+
+// When not at full capacity, avoid Terrorism — its wanted spike cancels respect
+// at small gang sizes. Use the gentler score ladder; allow HT only at high scores.
+const STATE_RECRUIT_PUSH = {
+  name: "RECRUIT-PUSH",
+  shouldRun: (ctx, info) => ctx.notFullCapacity && combatScore(info) >= 200,
+  task: (ctx, info) => {
+    const score = combatScore(info);
+    if (score < 600)  return "Mug People";
+    if (score < 1200) return "Armed Robbery";
+    if (score < 1800) return "Traffick Illegal Arms";
+    return "Human Trafficking";
+  },
 };
 
 // Fallthrough: existing score-ladder + optional terrorism
@@ -58,6 +79,7 @@ const STATE_MONEY_LADDER = {
 const MEMBER_TASK_STATES = [
   STATE_VIGILANTE,
   STATE_TRAIN_BOTTOM,
+  STATE_RECRUIT_PUSH,
   STATE_RESPECT,
   STATE_MONEY_LADDER,
 ];
@@ -103,8 +125,9 @@ class CombatGangEngine extends EngineStoke {
     const gangInfo = ns.gang.getGangInformation();
     const members  = ns.gang.getMemberNames();
     const infoMap  = Object.fromEntries(members.map(n => [n, ns.gang.getMemberInformation(n)]));
+    const notFullCapacity = members.length < NAMES.length;
 
-    this.#updateVigilanteSize(gangInfo, members.length, cfg);
+    this.#updateVigilanteSize(gangInfo, members.length, cfg, notFullCapacity);
 
     const scored = members
       .map(n => ({ name: n, score: combatScore(infoMap[n]) }))
@@ -122,6 +145,7 @@ class CombatGangEngine extends EngineStoke {
     return {
       gangInfo, members, infoMap, bottomCombat, vigilanteSquad,
       wantMoney: gangInfo.respect >= cfg.respectThreshold,
+      notFullCapacity,
       winChances, minWin,
       clashesOn: gangInfo.territoryWarfareEngaged,
       config: cfg,
@@ -130,19 +154,23 @@ class CombatGangEngine extends EngineStoke {
 
   // ── vigilante controller ───────────────────────────────────────────────────
 
-  #updateVigilanteSize(gi, memberCount, cfg) {
-    const triggerEff = 1 - cfg.wantedPenaltyThreshold;
-    const healthyEff = 0.99;
-    const atFloor    = gi.wantedLevel <= 1.01;
+  #updateVigilanteSize(gi, memberCount, cfg, notFullCapacity = false) {
+    const triggerEff  = 1 - cfg.wantedPenaltyThreshold;
+    const healthyEff  = 0.99;
+    const atFloor     = gi.wantedLevel <= 1.01;
+    // When not at full capacity always keep at least 2 members earning respect
+    const maxVigilante = notFullCapacity ? Math.max(0, memberCount - 2) : memberCount;
 
     if (atFloor || gi.wantedPenalty >= healthyEff) {
       this.vigilanteSize = Math.max(0, this.vigilanteSize - 1);
     } else if (gi.wantedPenalty < triggerEff) {
       const rising = this.prevWanted !== null && gi.wantedLevel > this.prevWanted;
       if (this.vigilanteSize === 0)  this.vigilanteSize = 1;
-      else if (rising)               this.vigilanteSize = Math.min(memberCount, this.vigilanteSize + 1);
+      else if (rising)               this.vigilanteSize = Math.min(maxVigilante, this.vigilanteSize + 1);
       // falling / steady → hold
     }
+    // clamp immediately in case notFullCapacity just became true
+    this.vigilanteSize = Math.min(this.vigilanteSize, maxVigilante);
     // penalty in [triggerEff, healthyEff) → hold (hysteresis band)
     this.prevWanted = gi.wantedLevel;
   }
@@ -196,6 +224,7 @@ class CombatGangEngine extends EngineStoke {
     }
   }
 
+  
   // ── per-member pipeline ────────────────────────────────────────────────────
 
   #process(name, ctx) {
@@ -208,12 +237,7 @@ class CombatGangEngine extends EngineStoke {
 
     for (const state of MEMBER_TASK_STATES) {
       if (state.shouldRun(ctx, info)) {
-        const task = state.task(ctx, info);
-        this.log("MEMBER",
-          `${info.name.padEnd(15)} score:${String(combatScore(info)).padStart(5)}` +
-          `  def:${String(info.def).padStart(5)}  state:${state.name.padEnd(12)}  → ${task}`
-        );
-        setTask(this.ns, info, task);
+        setTask(this.ns, info, state.task(ctx, info));
         return;
       }
     }
@@ -226,55 +250,70 @@ class CombatGangEngine extends EngineStoke {
     const elapsed = Date.now() - this.tickStartTime;
     await this.ns.sleep(Math.max(0, this.tickDurationMs - margin - elapsed));
 
-    for (const name of ctx.members) {
-      const info = ctx.infoMap[name];
-      if (ctx.vigilanteSquad.has(name)) continue;
-      if (ctx.clashesOn && info.def < ctx.config.clashMinDefense) continue;
-      this.ns.gang.setMemberTask(name, "Territory Warfare");
+    // Skip territory warfare when not at full capacity — the tick snapshot would
+    // see Territory Warfare and generate zero respect, stalling recruitment.
+    if (!ctx.notFullCapacity) {
+      for (const name of ctx.members) {
+        const info = ctx.infoMap[name];
+        if (ctx.vigilanteSquad.has(name)) continue;
+        if (ctx.clashesOn && info.def < ctx.config.clashMinDefense) continue;
+        this.ns.gang.setMemberTask(name, "Territory Warfare");
+      }
     }
+
     this.tickDurationMs = await this.ns.gang.nextUpdate();
     this.tickStartTime  = Date.now();
   }
 
-  // ── status ─────────────────────────────────────────────────────────────────
+  // ── dashboard ──────────────────────────────────────────────────────────────
 
-  #printStatus(ctx) {
-    const ns         = this.ns;
+  #printDashboard(ctx) {
+    const ns  = this.ns;
+    const gi  = ctx.gangInfo;
+    const cfg = ctx.config;
+    const SEP = "─".repeat(52);
+
+    ns.clearLog();
+
+    const time      = new Date().toLocaleTimeString();
+    const territory = gi.territory * 100;
+    const power     = gi.power;
+    const dTerr     = this.prevTerritory === null
+      ? "      --" : fmtDelta((territory - this.prevTerritory).toFixed(2), "%");
+    const dPow      = this.prevPower === null
+      ? "        --" : fmtDelta(ns.format.number(power - this.prevPower, 2), "");
+
+    ns.print(`══ COMBAT GANG  ${time} ${"═".repeat(28)}`);
+    ns.print(`  Members   ${ctx.members.length}/${NAMES.length}   Mode: ${ctx.wantMoney ? "MONEY  " : "RESPECT"}   Tick: ${String(this.tickDurationMs).padStart(5)}ms`);
+    ns.print(`  Territory ${territory.toFixed(2).padStart(6)}%  Δ${dTerr.padStart(9)}   Clashes: ${ctx.clashesOn ? "ON " : "OFF"}   MinWin: ${(ctx.minWin * 100).toFixed(1).padStart(5)}%`);
+    ns.print(`  Power     ${ns.format.number(power, 2).padStart(10)}  Δ${dPow.padStart(12)}`);
+    ns.print(`  Respect   ${ns.format.number(gi.respect, 2).padStart(10)}   Floor: ${ns.format.number(cfg.terrorismRespectFloor, 2).padStart(10)}   Thresh: ${ns.format.number(cfg.respectThreshold, 2).padStart(10)}`);
+    ns.print(`  Wanted    ${gi.wantedLevel.toFixed(4).padStart(8)}   Penalty: ${(gi.wantedPenalty * 100).toFixed(2).padStart(6)}%   Squad: ${this.vigilanteSize}`);
+    ns.print(SEP);
+
     const taskCounts = {};
     for (const name of ctx.members) {
       const task = ctx.infoMap[name].task;
       taskCounts[task] = (taskCounts[task] ?? 0) + 1;
     }
-    const taskSummary = Object.entries(taskCounts).map(([t, c]) => `${t}: ${c}`).join("  ");
-    const gi = ctx.gangInfo;
-    this.log("STATUS",
-      `Members: ${String(ctx.members.length).padStart(2)}  ` +
-      `Respect: ${ns.format.number(gi.respect, 2).padStart(10)}  ` +
-      `Territory: ${(gi.territory * 100).toFixed(1).padStart(5)}%  ` +
-      `Clashes: ${ctx.clashesOn ? "ON " : "OFF"}  ` +
-      `MinWin: ${(ctx.minWin * 100).toFixed(1).padStart(5)}%  ` +
-      `Mode: ${ctx.wantMoney ? "MONEY" : "RESPECT"}`
-    );
-    this.log("TASKS", taskSummary);
+    ns.print(`  Tasks     ${Object.entries(taskCounts).map(([t, c]) => `${t}: ${c}`).join("  ")}`);
+    ns.print(`  Training  ${[...ctx.bottomCombat].join(", ") || "(none)"}`);
+    ns.print(SEP);
 
-    const bottom = [...ctx.bottomCombat].join(", ");
-    this.log("WANTED",
-      `level:${gi.wantedLevel.toFixed(4).padStart(10)}  ` +
-      `penalty:${(gi.wantedPenalty * 100).toFixed(2).padStart(7)}%  ` +
-      `squad:${String(this.vigilanteSize).padStart(2)}  ` +
-      `threshold:${((1 - ctx.config.wantedPenaltyThreshold) * 100).toFixed(0)}%`
-    );
-    this.log("BOTTOM", bottom || "(none)");
+    ns.print(`  ${"MEMBER".padEnd(15)} ${"SCORE".padStart(5)}  ${"MULT".padStart(6)}  ${"ASC".padStart(5)}  ${"EQ".padStart(3)}  ${"STATE".padEnd(14)}  TASK`);
+    for (const name of ctx.members) {
+      const info   = ctx.infoMap[name];
+      const state  = MEMBER_TASK_STATES.find(s => s.shouldRun(ctx, info))?.name ?? "?";
+      const mult   = (info.str_asc_mult + info.def_asc_mult + info.dex_asc_mult + info.agi_asc_mult).toFixed(2);
+      const asc    = ns.gang.getAscensionResult(name);
+      const ascStr = asc
+        ? (info.str_asc_mult * (asc.str - 1) + info.def_asc_mult * (asc.def - 1) +
+           info.dex_asc_mult * (asc.dex - 1) + info.agi_asc_mult * (asc.agi - 1)).toFixed(2)
+        : "  --";
+      const eq     = info.upgrades.length + info.augmentations.length;
+      ns.print(`  ${name.padEnd(15)} ${String(combatScore(info)).padStart(5)}  ${mult.padStart(6)}  ${ascStr.padStart(5)}  ${String(eq).padStart(3)}  ${state.padEnd(14)}  ${info.task}`);
+    }
 
-    const territory = gi.territory * 100;
-    const power     = gi.power;
-    const dTerrStr  = this.prevTerritory === null ? "    --" : fmtDelta((territory - this.prevTerritory).toFixed(2), "%");
-    const dPowStr   = this.prevPower     === null ? "        --" : fmtDelta(ns.format.number(power - this.prevPower, 2), "");
-    this.log("TICK",
-      `${String(this.tickDurationMs).padStart(5)}ms  ` +
-      `Territory: ${territory.toFixed(2).padStart(6)}%  Δ${dTerrStr.padStart(9)}  ` +
-      `Power: ${ns.format.number(power, 2).padStart(10)}  Δ${dPowStr.padStart(12)}`
-    );
     this.prevTerritory = territory;
     this.prevPower     = power;
   }
@@ -288,7 +327,7 @@ class CombatGangEngine extends EngineStoke {
     this.nameIndex = recruit(ns, this.names, this.nameIndex, "port");
     this.#maybeToggleClashes(ctx);
     for (const name of ctx.members) this.#process(name, ctx);
-    this.#printStatus(ctx);
+    this.#printDashboard(ctx);
     await this.#flashMob(ctx);
   }
 }

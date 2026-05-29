@@ -30,10 +30,10 @@ const BACKDOOR_TARGETS = [
   "w0r1d_d43m0n",
 ];
 
-const CITIES   = ["Sector-12", "Aevum", "Volhaven", "Chongqing", "New Tokyo", "Ishima"];
-const TOR_COST = 200_000;
-const GYM      = "Powerhouse Gym";
-const GYM_CITY = "Sector-12";
+const CITIES                = ["Sector-12", "Aevum", "Volhaven", "Chongqing", "New Tokyo", "Ishima"];
+const TOR_COST              = 200_000;
+const GYM                   = "Powerhouse Gym";
+const GYM_CITY              = "Sector-12";
 const UNI                   = "ZB Institute of Technology";
 const UNI_CITY              = "Volhaven";
 const UNI_ALGORITHMS_MONEY  = 1_000_000_000;

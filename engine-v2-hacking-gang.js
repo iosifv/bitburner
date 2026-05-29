@@ -13,15 +13,14 @@ const NAMES = [
   "The Plague",     "Richard Stallman",
 ];
 
-function getTask(info, wantMoney, gangInfo, config) {
-
+function getTask(info, wantMoney, gangInfo, config, notFullCapacity) {
   const hack = info.hack;
   if (hack <  200)  return "Train Hacking";
   if (gangInfo.wantedLevel > 1 && gangInfo.wantedPenalty < 1 - config.wantedPenaltyThreshold) return "Ethical Hacking";
   if (hack <  300)  return "Ransomware";
   if (hack < 1000)  return "Phishing";
   if (hack < 3000)  return "Identity Theft";
-  if (!wantMoney && gangInfo.respect >= config.cyberterrorismRespectFloor) return "Cyberterrorism";
+  if ((!wantMoney || notFullCapacity) && gangInfo.respect >= config.cyberterrorismRespectFloor) return "Cyberterrorism";
   return "Money Laundering";
 }
 
@@ -44,7 +43,7 @@ class HackingGangEngine extends EngineStoke {
     };
   }
 
-  processMembers(members, gangInfo, wantMoney, config) {
+  processMembers(members, gangInfo, wantMoney, config, notFullCapacity) {
     const ns = this.ns;
     const { ascensionThreshold, equipmentPriceDivisor } = config;
 
@@ -68,44 +67,21 @@ class HackingGangEngine extends EngineStoke {
         }
       }
 
-      const task = getTask(info, wantMoney, gangInfo, config);
-      if (info.task !== task) {
-        ns.gang.setMemberTask(name, task);
-        log(ns, "silent", "HACK-GANG", "ASSIGN", `${name.padEnd(15)} hack:${info.hack}  → ${task}`);
-      }
+      const task = getTask(info, wantMoney, gangInfo, config, notFullCapacity);
+      if (info.task !== task) ns.gang.setMemberTask(name, task);
     }
-  }
-
-  printStatus(gangInfo, members, wantMoney) {
-    const ns = this.ns;
-    const taskCounts = {};
-    for (const name of members) {
-      const task = ns.gang.getMemberInformation(name).task;
-      taskCounts[task] = (taskCounts[task] ?? 0) + 1;
-    }
-    const taskSummary = Object.entries(taskCounts)
-      .map(([task, count]) => `${task}: ${count}`)
-      .join("  ");
-
-    log(ns, "port", "HACK-GANG", "STATUS",
-      `🦹‍♂️: ${String(members.length).padStart(2)}  ` +
-      `Resp.: ${ns.format.number(gangInfo.respect, 2).padStart(8)}  ` +
-      `💹: ${wantMoney ? "MONEY" : "RESPECT"}  ` +
-      `📝: ${taskSummary}`
-    );
   }
 
   async tick() {
-    const ns        = this.ns;
-    const gangInfo  = ns.gang.getGangInformation();
-    const members   = ns.gang.getMemberNames();
-    const config    = this.hackingGangConfig;
-    const wantMoney = gangInfo.respect >= config.respectThreshold;
+    const ns              = this.ns;
+    const gangInfo        = ns.gang.getGangInformation();
+    const members         = ns.gang.getMemberNames();
+    const config          = this.hackingGangConfig;
+    const wantMoney       = gangInfo.respect >= config.respectThreshold;
+    const notFullCapacity = members.length < this.names.length;
 
     this.nameIndex = recruit(ns, this.names, this.nameIndex, "port", "HACK-GANG");
-    this.processMembers(members, gangInfo, wantMoney, config);
-    this.printStatus(gangInfo, members, wantMoney);
-    log(ns, "port", "HACK-GANG", "TICK", `members: ${members.length}  respect: ${ns.format.number(gangInfo.respect, 2)}`);
+    this.processMembers(members, gangInfo, wantMoney, config, notFullCapacity);
   }
 }
 
