@@ -1,11 +1,11 @@
 // Part of the engine-v2 system — engine-v2-darknet.js: DarknetEngine runner
 import { EngineStoke } from "lib/engine-stoke.js";
-import { log }         from "lib/logger.js";
 
 const DARKNET_PORT     = 666;
 const SPORE            = "spores/darknet-probe.js";
 const STALE_TIMEOUT_MS = 30_000;
 const RED              = String.fromCharCode(27) + "[31m";
+const YELLOW           = String.fromCharCode(27) + "[33m";
 const RESET            = String.fromCharCode(27) + "[0m";
 
 function sporeFingerprint(content) {
@@ -21,7 +21,7 @@ class DarknetEngine extends EngineStoke {
   }
 
   log(action, message) {
-    log(this.ns, "print", "DARKNET", action, message);
+    this.ns.print(action.padEnd(10) + message);
   }
 
   get expectedV() {
@@ -30,8 +30,15 @@ class DarknetEngine extends EngineStoke {
 
   async spread(node) {
     const darknetServer = this.ns.dnet.getServerDetails(node);
-    if (!darknetServer.isOnline || !darknetServer.isConnectedToCurrentServer) {
+    if (!darknetServer.isOnline || !darknetServer.isConnectedToCurrentServer || !darknetServer.hasSession) {
       this.log("SKIP", `unreachable → ${node}`);
+      return;
+    }
+
+    const sporeRam = this.ns.getScriptRam(SPORE, "home");
+    const nodeRam  = this.ns.getServerMaxRam(node);
+    if (nodeRam < sporeRam) {
+      this.log("SKIP", `low RAM ${nodeRam}GB < ${sporeRam}GB → ${node}`);
       return;
     }
 
@@ -56,18 +63,20 @@ class DarknetEngine extends EngineStoke {
     let entry;
     while ((entry = this.ns.readPort(DARKNET_PORT)) !== "NULL PORT DATA") {
       try {
-        const { host, v, node, auth, actions, serverInfo } = JSON.parse(entry);
+        const { host, v, node, auth, serverInfo, dbg, strategy, server, error, phishing, caches, files } = JSON.parse(entry);
         if (host && v) this.nodeVersionMap.set(host, { v, ts: Date.now() });
+        if (phishing)           { this.log("PHISH ", `${(host ?? "?").padEnd(20)}  ${JSON.stringify(phishing)}`); if (!node) continue; }
+        if (caches?.length)     { this.log("CACHE ", `${(host ?? "?").padEnd(20)}  ${JSON.stringify(caches)}`);  continue; }
+        if (dbg === "server-dump")   { this.log("DUMP  ", `${node}  ${JSON.stringify(server)}`);           continue; }
+        if (dbg === "action-error")  { this.ns.print(`${YELLOW}ACT!!     ${strategy} → ${node}  err=${error}${RESET}`); continue; }
+        if (dbg === "ls-result")     { this.log("LS    ", `${node}  ${JSON.stringify(files)}`);             continue; }
         if (!node) continue;
 
         if (auth?.success) {
           this.log("AUTH  ", `${(host ?? "?").padEnd(20)} → ${node.padEnd(24)}  [${auth.strategy}]`);
-          if (actions?.length) {
-            this.log("ACTION", JSON.stringify(actions, null, 2));
-          }
         } else {
           const h = host ?? "?";
-          this.ns.print(`${RED}[DARKNET]   AUTH FAIL  ${h.padEnd(20)} → ${node}${RESET}`);
+          this.ns.print(`${RED}AUTH FAIL  ${h.padEnd(20)} → ${node}${RESET}`);
           if (serverInfo) {
             this.ns.print(`${RED}${JSON.stringify(serverInfo, null, 2)}${RESET}`);
           }
@@ -94,14 +103,26 @@ class DarknetEngine extends EngineStoke {
 
     this.log("VERSION", `expected=${expected}`);
     if (current.length) this.log("OK    ", current.join("  "));
-    if (stale.length)   this.log("STALE ", stale.join("  "));
-    if (silent.length)  this.log("SILENT", silent.join("  "));
+    if (stale.length)   this.ns.print(`${YELLOW}STALE     ${stale.join("  ")}${RESET}`);
+    if (silent.length)  this.ns.print(`${YELLOW}SILENT    ${silent.join("  ")}${RESET}`);
+  }
+
+  floodStale() {
+    const expected = this.expectedV;
+    for (const [node, { v, ts }] of this.nodeVersionMap) {
+      if (Date.now() - ts > STALE_TIMEOUT_MS) continue;
+      if (v === expected) continue;
+      const ok  = this.ns.scp(SPORE, node, "home");
+      const pid = this.ns.exec(SPORE, node, { preventDuplicates: false });
+      if (pid) this.log("FLOOD ", `scp=${ok ? "ok" : "fail"} pid=${pid} → ${node}`);
+    }
   }
 
   async tick() {
     for (const node of this.ns.dnet.probe()) {
       await this.spread(node);
     }
+    this.floodStale();
     this.drainPort();
     this.logConvergence();
   }
