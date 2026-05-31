@@ -151,7 +151,7 @@ const stateUpgradeHome = {
 };
 
 const stateTrainCombatCondition = ({ player, config, ns }) => {
-  if (ns.heart.break() <= -54_000) {
+  if (ns.heart.break() <= -254_000) {
     return false;
   }
   if (

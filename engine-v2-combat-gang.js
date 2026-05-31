@@ -300,7 +300,7 @@ class CombatGangEngine extends EngineStoke {
     ns.print(`  Training  ${[...ctx.bottomCombat].join(", ") || "(none)"}`);
     ns.print(SEP);
 
-    ns.print(`  ${"MEMBER".padEnd(15)} ${"SCORE".padStart(5)}  ${"MULT".padStart(6)}  ${"ASC".padStart(5)}  ${"EQ".padStart(3)}  ${"STATE".padEnd(14)}  TASK`);
+    ns.print(`  ${"MEMBER".padEnd(15)} ${"SCORE".padStart(7)}  ${"MULT".padStart(6)}  ${"ASC".padStart(5)}  ${"EQ".padStart(3)}  ${"STATE".padEnd(14)}  TASK`);
     for (const name of ctx.members) {
       const info   = ctx.infoMap[name];
       const state  = MEMBER_TASK_STATES.find(s => s.shouldRun(ctx, info))?.name ?? "?";
@@ -311,7 +311,7 @@ class CombatGangEngine extends EngineStoke {
            info.dex_asc_mult * (asc.dex - 1) + info.agi_asc_mult * (asc.agi - 1)).toFixed(2)
         : "  --";
       const eq     = info.upgrades.length + info.augmentations.length;
-      ns.print(`  ${name.padEnd(15)} ${String(combatScore(info)).padStart(5)}  ${mult.padStart(6)}  ${ascStr.padStart(5)}  ${String(eq).padStart(3)}  ${state.padEnd(14)}  ${info.task}`);
+      ns.print(`  ${name.padEnd(15)} ${String(combatScore(info)).padStart(7)}  ${mult.padStart(6)}  ${ascStr.padStart(5)}  ${String(eq).padStart(3)}  ${state.padEnd(14)}  ${info.task}`);
     }
 
     this.prevTerritory = territory;

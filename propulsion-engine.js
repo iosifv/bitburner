@@ -14,6 +14,7 @@ const SUB_ENGINES = [
   { name: "hacknet",      script: "engine-v2-hacknet.js"      },
   { name: "cortex",       script: "engine-v2-cortex.js"       },
   { name: "darknet",      script: "engine-v2-darknet.js"      },
+  { name: "telepathy",   script: "engine-v2-telepathy.js"   },
 ];
 
 const LIFECYCLE_EVERY = 20; // ticks between spawn/kill checks (~5s at 250ms)

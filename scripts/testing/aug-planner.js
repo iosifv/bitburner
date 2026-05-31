@@ -36,7 +36,7 @@ const USEFUL_AUGS = new Set([]);
  * @param {...any} args Arguments forwarded to the function
  */
 async function dodge(ns, fn, ...args) {
-  const pid = ns.run("test-scripts/dodge.js", { threads: 1, temporary: true }, fn, ...args);
+  const pid = ns.run("scripts/testing/dodge.js", { threads: 1, temporary: true }, fn, ...args);
   if (pid === 0) throw `Failed to dodge RAM cost for ${JSON.stringify([fn, ...args])}`;
   await ns.nextPortWrite(pid * 2);
   return ns.readPort(pid * 2);
@@ -322,15 +322,16 @@ export async function main(ns) {
     ns.tprint(`\n=== NFG ===`);
     ns.tprint(`Affordable levels (rep ignored): ${count}  ($${ns.format.number(totalNfgCost)})`);
 
-    // Print per-level cost breakdown
+    // Print per-level cost breakdown (up to 40 levels; mark the affordability cutoff)
     let runningTotal = 0;
     let lvlMult = Math.pow(PRICE_MULTIPLIER, numPending);
-    for (let i = 0; i < count; i++) {
-      const price = nfgData.basePrice * Math.pow(NFG_LVL_MULTIPLIER, startLevel + i);
-      const cost  = price * lvlMult;
-      runningTotal += cost;
-      lvlMult *= PRICE_MULTIPLIER;
-      ns.tprint(`  Lvl ${startLevel + i + 1}: $${ns.format.number(cost)}  (total: $${ns.format.number(runningTotal)})`);
+    for (let i = 0; i < 40; i++) {
+      const price      = nfgData.basePrice * Math.pow(NFG_LVL_MULTIPLIER, startLevel + i);
+      const cost       = price * lvlMult;
+      runningTotal    += cost;
+      lvlMult         *= PRICE_MULTIPLIER;
+      const affordable = i < count ? "" : "  ✗";
+      ns.tprint(`  Lvl ${startLevel + i + 1}: $${ns.format.number(cost)}  (total: $${ns.format.number(runningTotal)})${affordable}`);
     }
 
     ns.tprint(`Favor needed to donate: ${favorToDonate}`);
