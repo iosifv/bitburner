@@ -1,6 +1,6 @@
 // Part of the engine-v2 system — engine-v2-cortex.js: CortexEngine — ordered state machine
 import { EngineStoke }                          from "lib/engine-stoke.js";
-import { getConfig }                            from "lib/config.js";
+import { getConfig }                            from "lib/quonfig.js";
 import { getServers, serverInstallBackdoor }    from "lib/scout.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -292,6 +292,10 @@ class CortexEngine extends EngineStoke {
 
   constructor(ns) {
     super(ns, "cortex");
+  }
+
+  log(action, message) {
+    this.ns.print(`${action.padEnd(10)} ${message}`);
   }
 
   get config() {

@@ -1,11 +1,22 @@
-import { setConfig } from "lib/config.js";
+import { setConfig } from "lib/quonfig.js";
+
+export const uiTopPadding     = 20;
+export const uiQuonfigWidth   = 420;
+export const uiQuonfigHeight  = 1400;
+export const uiEngineWidth    = 800;
+export const uiBatchingWidth  = 625;
+export const uiBatchingHeight = uiQuonfigHeight;
+export const uiStatsWidth     = 625;
+export const uiStatsHeight    = 370;
+export const uiBoysWidth      = uiStatsWidth;
+export const uiBoysHeight     = 400;
 
 let pendingEdit  = null;  // set by buttons, consumed by main loop
 let pushCfg      = null;  // set by component, called by main loop to push fresh cfg
 let notifySaved  = null;  // set by component, called by main loop after a write
 
 function loadCfg(ns) {
-  const raw = ns.read("config.json");
+  const raw = ns.read("quonfig.json");
   return raw && raw !== "NULL PORT DATA" ? JSON.parse(raw) : {};
 }
 
@@ -73,7 +84,7 @@ function ConfigApp({ initialCfg }) {
   return React.createElement("div", { style: { fontFamily: "monospace", padding: "6px 10px", fontSize: "0.75em" } },
     React.createElement("div", {
       style: { color: "#888", marginBottom: "4px", borderBottom: "1px solid #333", paddingBottom: "6px", fontSize: "0.85em" },
-    }, "⚙  config.json — click to edit"),
+    }, "⚙  quonfig.json — click to edit"),
     React.createElement("table", { style: { borderCollapse: "collapse" } },
       React.createElement("tbody", null, ...sections),
     ),
@@ -83,8 +94,8 @@ function ConfigApp({ initialCfg }) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(quonfigWidth, quonfigHeight);
-  ns.ui.moveTail(ns.ui.windowSize()[0] - quonfigWidth - 1, quonfigTopPadding);
+  ns.ui.resizeTail(uiQuonfigWidth - 10, uiQuonfigHeight);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth, uiTopPadding);
 
   ns.clearLog();
   const initialCfg = loadCfg(ns);
@@ -110,7 +121,3 @@ export async function main(ns) {
     notifySaved?.(key);
   }
 }
-
-export const quonfigTopPadding = 20;
-export const quonfigWidth      = 420;
-export const quonfigHeight     = 1300;

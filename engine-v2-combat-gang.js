@@ -2,7 +2,14 @@
 import { EngineStoke }                                          from "lib/engine-stoke.js";
 import { renameMembers, recruit, setTask, combatScore,
          setTerritoryWarfare, getClashWinChances }             from "lib/gang.js";
-import { getConfig }                                            from "lib/config.js";
+import { getConfig }                                            from "lib/quonfig.js";
+
+const RESPECT_THRESHOLD       = 2_000_000; // 2000 * 1000
+const TERRORISM_RESPECT_FLOOR = 100_000;   // 100 * 1000
+const CLASH_ENABLE_WIN        = 0.55;
+const CLASH_DISABLE_WIN       = 0.50;
+const CLASH_MIN_DEFENSE       = 300;
+const FLASH_MOB_MARGIN_MS     = 250;
 
 const fmtDelta = (v, unit) => `${Number(v) >= 0 ? "+" : ""}${v}${unit}`;
 
@@ -103,17 +110,17 @@ class CombatGangEngine extends EngineStoke {
   get config() {
     const ns = this.ns;
     return {
-      respectThreshold:       getConfig(ns, "gang-respect-threshold") * 1000,
+      respectThreshold:       RESPECT_THRESHOLD,
       ascensionThreshold:     getConfig(ns, "gang-ascension-threshold"),
       ascensionEquipMargin:   getConfig(ns, "gang-ascension-equip-margin"),
       buyEquipment:           getConfig(ns, "gang-buy-equipment"),
       wantedPenaltyThreshold: getConfig(ns, "gang-wanted-penalty-threshold"),
-      terrorismRespectFloor:  getConfig(ns, "gang-respect-floor-terrorism") * 1000,
+      terrorismRespectFloor:  TERRORISM_RESPECT_FLOOR,
       trainBottomN:           getConfig(ns, "gang-train-bottom-n"),
-      clashEnableWinChance:   getConfig(ns, "gang-clash-enable-winchance"),
-      clashDisableWinChance:  getConfig(ns, "gang-clash-disable-winchance"),
-      clashMinDefense:        getConfig(ns, "gang-clash-min-defense"),
-      flashMobMarginMs:       getConfig(ns, "gang-flash-mob-margin-ms"),
+      clashEnableWinChance:   CLASH_ENABLE_WIN,
+      clashDisableWinChance:  CLASH_DISABLE_WIN,
+      clashMinDefense:        CLASH_MIN_DEFENSE,
+      flashMobMarginMs:       FLASH_MOB_MARGIN_MS,
     };
   }
 
@@ -220,7 +227,7 @@ class CombatGangEngine extends EngineStoke {
       if (!["Weapon", "Armor", "Vehicle", "Augmentation"].includes(ns.gang.getEquipmentType(eq))) continue;
       if (ns.gang.getEquipmentCost(eq) > ns.getPlayer().money) continue;
       ns.gang.purchaseEquipment(name, eq);
-      this.log("EQUIP", `${name.padEnd(15)} ${eq}`);
+      // this.log("EQUIP", `${name.padEnd(15)} ${eq}`);
     }
   }
 
@@ -324,7 +331,7 @@ class CombatGangEngine extends EngineStoke {
     const ns      = this.ns;
     const ctx     = this.#computeContext();
 
-    this.nameIndex = recruit(ns, this.names, this.nameIndex, "port");
+    this.nameIndex = recruit(ns, this.names, this.nameIndex);
     this.#maybeToggleClashes(ctx);
     for (const name of ctx.members) this.#process(name, ctx);
     this.#printDashboard(ctx);

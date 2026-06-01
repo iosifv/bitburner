@@ -5,9 +5,8 @@ import { reloadServers, printDiff } from "lib/scout.js";
 class ScoutEngine extends EngineStoke {
   constructor(ns) { super(ns, "scout"); }
   async tick() {
-    this.log("TICK", "scouting...");
-    await reloadServers(this.ns, "silent");
-    printDiff(this.ns, "port");
+    await reloadServers(this.ns);
+    printDiff(this.ns);
   }
 }
 

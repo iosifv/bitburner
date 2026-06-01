@@ -1,8 +1,11 @@
 // Part of the engine-v2 system — engine-v2-hacking-gang.js: HackingGangEngine runner
 import { EngineStoke }            from "lib/engine-stoke.js";
 import { renameMembers, recruit } from "lib/gang.js";
-import { getConfig }              from "lib/config.js";
-import { log }                    from "lib/logger.js";
+import { getConfig }              from "lib/quonfig.js";
+import { logPropulsion }          from "lib/logger.js";
+
+const RESPECT_THRESHOLD            = 2_000_000; // 2000 * 1000
+const CYBERTERRORISM_RESPECT_FLOOR = 100_000;   // 100 * 1000
 
 const NAMES = [
   "Zero Cool",      "Linus Torvalds",
@@ -35,11 +38,11 @@ class HackingGangEngine extends EngineStoke {
   get hackingGangConfig() {
     const ns = this.ns;
     return {
-      respectThreshold:           getConfig(ns, "gang-respect-threshold") * 1000,
+      respectThreshold:           RESPECT_THRESHOLD,
       ascensionThreshold:         getConfig(ns, "gang-ascension-threshold"),
       equipmentPriceDivisor:      getConfig(ns, "gang-equipment-price-divisor"),
       wantedPenaltyThreshold:     getConfig(ns, "gang-wanted-penalty-threshold"),
-      cyberterrorismRespectFloor: getConfig(ns, "gang-respect-floor-cyberterrorism") * 1000,
+      cyberterrorismRespectFloor: CYBERTERRORISM_RESPECT_FLOOR,
     };
   }
 
@@ -53,7 +56,7 @@ class HackingGangEngine extends EngineStoke {
       const ascResult = ns.gang.getAscensionResult(name);
       if (ascResult?.hack >= ascensionThreshold) {
         ns.gang.ascendMember(name);
-        log(ns, "port", "HACK-GANG", "ASCEND", `${name.padEnd(15)} hack:x${ascResult.hack.toFixed(2)}`);
+        logPropulsion(ns, "HACK-GANG", "ASCEND", `${name.padEnd(15)} hack:x${ascResult.hack.toFixed(2)}`);
       }
 
       for (const eq of ns.gang.getEquipmentNames()) {
@@ -63,7 +66,7 @@ class HackingGangEngine extends EngineStoke {
         if (!owned && ["Rootkit", "Augmentation"].includes(type)
             && ns.getPlayer().money > cost * equipmentPriceDivisor) {
           ns.gang.purchaseEquipment(name, eq);
-          log(ns, "port", "HACK-GANG", "EQUIP", `${name.padEnd(15)} ${eq}`);
+          logPropulsion(ns, "HACK-GANG", "EQUIP", `${name.padEnd(15)} ${eq}`);
         }
       }
 
@@ -80,7 +83,7 @@ class HackingGangEngine extends EngineStoke {
     const wantMoney       = gangInfo.respect >= config.respectThreshold;
     const notFullCapacity = members.length < this.names.length;
 
-    this.nameIndex = recruit(ns, this.names, this.nameIndex, "port", "HACK-GANG");
+    this.nameIndex = recruit(ns, this.names, this.nameIndex, "HACK-GANG");
     this.processMembers(members, gangInfo, wantMoney, config, notFullCapacity);
   }
 }

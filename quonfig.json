@@ -1,0 +1,45 @@
+{
+  "enable-scout": { "type": "boolean", "value": true, "label": "Enable Scout" },
+  "enable-stats": { "type": "boolean", "value": true, "label": "Enable Stats" },
+  "enable-batching": { "type": "boolean", "value": true, "label": "Enable Batching" },
+  "enable-botnet": { "type": "boolean", "value": false, "label": "Enable Botnet" },
+  "enable-telepathy": { "type": "boolean", "value": false, "label": "Enable Telepathy" },
+  "enable-hacknet": { "type": "boolean", "value": false, "label": "Enable Hacknet" },
+  "enable-combat-gang": { "type": "boolean", "value": false, "label": "Enable Combat Gang" },
+  "enable-the-boys": { "type": "boolean", "value": false, "label": "Enable The Boys" },
+  "enable-hacking-gang": { "type": "boolean", "value": false, "label": "Enable Hacking Gang" },
+  "enable-cortex": { "type": "boolean", "value": false, "label": "Enable Cortex" },
+  "enable-darknet": { "type": "boolean", "value": false, "label": "Enable Darknet" },
+
+  "ops-forced-target": { "type": "string", "value": " ", "label": "Force Target" },
+  "ops-free-home-ram": { "type": "number", "value": 70, "label": "Free home RAM" },
+  "ops-botnet-min-ram": { "type": "number", "value": 32, "label": "Botnet Min RAM" },
+  "ops-telepathy-size": { "type": "number", "value": 64, "label": "Telepathy RAM" },
+
+
+  "hacknet-buy-limit": { "type": "number", "value": 8, "label": "Max Nodes" },
+  "hacknet-budget-ratio": { "type": "number", "value": 0.25, "label": "Budget Ratio" },
+
+
+  "gang-ascension-threshold": { "type": "number", "value": 1.4, "label": "Ascension Mult." },
+  "gang-wanted-penalty-threshold": { "type": "number", "value": 0.1, "label": "Wanted Penalty" },
+  "gang-buy-equipment": { "type": "boolean", "value": true, "label": "Buy Equipment" },
+  "gang-ascension-equip-margin": { "type": "number", "value": 0.15, "label": "Equip stop margin" },
+  "gang-train-bottom-n": { "type": "number", "value": 3, "label": "Train combat" },
+
+
+
+  "cortex-target-hack-initial": { "type": "number", "value": 100, "label": "Hack Initial" },
+  "cortex-target-combat": { "type": "string", "value": "165,165,165,165", "label": "Str,Def,Dex,Agi" },
+  "cortex-target-cha": { "type": "number", "value": 100, "label": "Charisma" },
+
+
+
+  "log-include-engine": { "type": "boolean", "value": false, "label": "[ENGINE]" },
+  "log-include-debug": { "type": "boolean", "value": false, "label": "[DEBUG]" },
+
+  "last-one": null
+}
+
+
+

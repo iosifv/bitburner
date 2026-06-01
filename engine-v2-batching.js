@@ -1,6 +1,10 @@
 // Part of the engine-v2 system — engine-v2-batching.js: BatcherEngine runner
-import { EngineStoke }     from "lib/engine-stoke.js";
-import { getConfig }       from "lib/config.js";
+import { EngineStoke }                                  from "lib/engine-stoke.js";
+import { logPropulsion }                               from "lib/logger.js";
+import { getConfig }                                   from "lib/quonfig.js";
+import { uiQuonfigWidth, uiEngineWidth,
+         uiBatchingWidth, uiBatchingHeight,
+         uiTopPadding }                               from "./quonfig.js";
 import { getServers }      from "lib/scout.js";
 import { BatchMath }       from "lib/batcher-math.js";
 import { RamAllocator }    from "lib/batcher-allocator.js";
@@ -8,10 +12,18 @@ import { BatchScheduler }  from "lib/batcher-scheduler.js";
 import { ShotgunStrategy } from "lib/batcher-strategies.js";
 import { pickTarget }      from "lib/batcher-targeting.js";
 
-const HACK_SCRIPT   = "spores/leech-hack.js";
-const GROW_SCRIPT   = "spores/enzyme-grow.js";
-const WEAKEN_SCRIPT = "spores/mycelium-weaken.js";
-const BACTERIA      = "spores/bacteria.js"; // legacy — swept on first tick
+const HACK_SCRIPT        = "spores/leech-hack.js";
+const GROW_SCRIPT        = "spores/enzyme-grow.js";
+const WEAKEN_SCRIPT      = "spores/mycelium-weaken.js";
+const BACTERIA           = "spores/bacteria.js"; // legacy — swept on first tick
+const BATCHER_STATE_FILE = "batcher-state.json";
+
+const STEAL_FRACTION    = 0.10;
+const STEP_GAP_MS       = 20;
+const GROW_MARGIN       = 1.05;
+const PREP_SEC_TOL      = 0.5;
+const PREP_MONEY_TOL    = 0.99;
+const SWITCH_MARGIN     = 1.25;
 
 class BatcherEngine extends EngineStoke {
   #batchId = 0;
@@ -28,7 +40,7 @@ class BatcherEngine extends EngineStoke {
     };
 
     this.math      = new BatchMath(ns, ram);
-    this.allocator = new RamAllocator(ns, getConfig(ns, "engine-free-home-ram"));
+    this.allocator = new RamAllocator(ns, getConfig(ns, "ops-free-home-ram"));
     this.scheduler = new BatchScheduler(ns, {
       math:      this.math,
       allocator: this.allocator,
@@ -37,15 +49,14 @@ class BatcherEngine extends EngineStoke {
   }
 
   get config() {
-    const ns = this.ns;
     return {
-      steal:              getConfig(ns, "batching-steal-fraction"),
-      stepGapMs:          getConfig(ns, "batching-step-gap-ms"),
-      growMargin:         getConfig(ns, "batching-grow-margin"),
-      prepSecTolerance:   getConfig(ns, "batching-prep-sec-tolerance"),
-      prepMoneyTolerance: getConfig(ns, "batching-prep-money-tolerance"),
-      switchMargin:       getConfig(ns, "batching-switch-margin"),
-      forcedTarget:       getConfig(ns, "batching-forced-target"),
+      steal:              STEAL_FRACTION,
+      stepGapMs:          STEP_GAP_MS,
+      growMargin:         GROW_MARGIN,
+      prepSecTolerance:   PREP_SEC_TOL,
+      prepMoneyTolerance: PREP_MONEY_TOL,
+      switchMargin:       SWITCH_MARGIN,
+      forcedTarget:       getConfig(this.ns, "ops-forced-target"),
     };
   }
 
@@ -68,7 +79,7 @@ class BatcherEngine extends EngineStoke {
 
     const target = await pickTarget(ns, config);
     if (!target) {
-      this.log("IDLE", "no hackable victim found");
+      ns.write(BATCHER_STATE_FILE, JSON.stringify({ ts: Date.now(), phase: "IDLE", target: null, message: "no hackable target" }), "w");
       this.#printDebug(null, zombies, [], { phase: "IDLE", message: "no hackable target" });
       return;
     }
@@ -81,11 +92,10 @@ class BatcherEngine extends EngineStoke {
     const snapshot = this.allocator.snapshot(zombies);
     const result   = await this.scheduler.tick({
       target, zombies, snapshot, config,
-      mode:        "port",
       nextBatchId: () => ++this.#batchId,
     });
 
-    this.log(result.phase, result.message);
+    ns.write(BATCHER_STATE_FILE, JSON.stringify({ ts: Date.now(), phase: result.phase, target: target.name, message: result.message }), "w");
     this.#printDebug(target, zombies, snapshot, result);
   }
 
@@ -123,7 +133,7 @@ class BatcherEngine extends EngineStoke {
     const usedPct   = totalMax > 0 ? ((1 - totalFree / totalMax) * 100).toFixed(0) : "?";
     ns.print(`  Fleet     ${zombies.length} servers  ${ns.format.ram(totalFree)} free / ${ns.format.ram(totalMax)} total  (${usedPct}% used)`);
 
-    const homeReserve = getConfig(ns, "engine-free-home-ram");
+    const homeReserve = getConfig(ns, "ops-free-home-ram");
     for (const { host, freeGB } of snapshot) {
       const maxRam   = ns.getServerMaxRam(host);
       const usedFrac = maxRam > 0 ? Math.min(1, (maxRam - freeGB) / maxRam) : 1;
@@ -180,7 +190,7 @@ class BatcherEngine extends EngineStoke {
         }
       }
     }
-    if (killed > 0) this.log("EVICT", `freed ${killed} stale worker(s)`);
+    if (killed > 0) logPropulsion(this.ns, "BATCHING", "EVICT", `freed ${killed} stale worker(s)`);
   }
 
   // Kill any lingering bacteria.js infinite-loop workers on every zombie (migration step)
@@ -196,13 +206,15 @@ class BatcherEngine extends EngineStoke {
       }
     }
     this.#swept = true;
-    if (killed > 0) this.log("SWEEP", `killed ${killed} legacy bacteria.js worker(s)`);
+    if (killed > 0) logPropulsion(this.ns, "BATCHING", "SWEEP", `killed ${killed} legacy bacteria.js worker(s)`);
   }
 }
 
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
+  ns.ui.resizeTail(uiBatchingWidth, uiBatchingHeight);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth - uiEngineWidth - uiBatchingWidth - 2, uiTopPadding);
   const engine = new BatcherEngine(ns);
   while (true) {
     await engine.tick();

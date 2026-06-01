@@ -1,10 +1,10 @@
 // Part of the engine-v2 system — engine-v2-telepathy.js: TelepathyEngine runner
-import { EngineStoke }    from "lib/engine-stoke.js";
-import { tickTelepathy }  from "lib/telepathy.js";
+import { EngineStoke }   from "lib/engine-stoke.js";
+import { tickTelepathy } from "lib/telepathy.js";
 
 class TelepathyEngine extends EngineStoke {
   constructor(ns) { super(ns, "telepathy"); }
-  async tick() { await tickTelepathy(this.ns, "port"); }
+  async tick() { await tickTelepathy(this.ns); }
 }
 
 export async function main(ns) {

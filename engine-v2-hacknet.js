@@ -5,8 +5,7 @@ import { tickHacknet } from "lib/hacknet.js";
 class HacknetEngine extends EngineStoke {
   constructor(ns) { super(ns, "hacknet"); }
   async tick() {
-    this.log("TICK", "hacknet cycle...");
-    tickHacknet(this.ns, "port");
+    tickHacknet(this.ns);
   }
 }
 
