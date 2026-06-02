@@ -1,15 +1,5 @@
-import { setConfig } from "lib/quonfig.js";
-
-export const uiTopPadding     = 20;
-export const uiQuonfigWidth   = 420;
-export const uiQuonfigHeight  = 1400;
-export const uiEngineWidth    = 800;
-export const uiBatchingWidth  = 625;
-export const uiBatchingHeight = uiQuonfigHeight;
-export const uiStatsWidth     = 625;
-export const uiStatsHeight    = 370;
-export const uiBoysWidth      = uiStatsWidth;
-export const uiBoysHeight     = 620;
+import { setConfig }                                          from "lib/quonfig.js";
+import { uiQuonfigWidth, uiQuonfigHeight, uiTopPadding }     from "env.js";
 
 let pendingEdit  = null;  // set by buttons, consumed by main loop
 let pushCfg      = null;  // set by component, called by main loop to push fresh cfg

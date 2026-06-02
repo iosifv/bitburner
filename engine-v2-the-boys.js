@@ -4,7 +4,7 @@ import { combatScore, getClashWinChances }     from "lib/gang.js";
 import { uiQuonfigWidth, uiEngineWidth,
          uiBatchingWidth, uiStatsWidth, uiStatsHeight,
          uiBoysWidth, uiBoysHeight,
-         uiTopPadding }                        from "./quonfig.js";
+         uiTopPadding }                        from "env.js";
 
 const NAMES = [
   "Homelander",  "Billy Butcher",

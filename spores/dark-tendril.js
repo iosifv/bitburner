@@ -197,6 +197,6 @@ export async function main(ns) {
 
     await openLocalCaches(ns, host, MY_V);
 
-    await ns.sleep(LOOP_MS);
+    await ns.sleep(TENDRIL_LOOP);
   }
 }

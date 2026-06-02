@@ -1,10 +1,11 @@
 // Part of the engine-v2 system — engine-v2-batching.js: BatcherEngine runner
 import { EngineStoke }                                  from "lib/engine-stoke.js";
 import { logPropulsion }                               from "lib/logger.js";
+import { BATCHER_PORT }                                from "env.js";
 import { getConfig }                                   from "lib/quonfig.js";
 import { uiQuonfigWidth, uiEngineWidth,
          uiBatchingWidth, uiBatchingHeight,
-         uiTopPadding }                               from "./quonfig.js";
+         uiTopPadding }                               from "env.js";
 import { getServers }      from "lib/scout.js";
 import { BatchMath }       from "lib/batcher-math.js";
 import { RamAllocator }    from "lib/batcher-allocator.js";
@@ -16,7 +17,6 @@ const HACK_SCRIPT        = "spores/leech-hack.js";
 const GROW_SCRIPT        = "spores/enzyme-grow.js";
 const WEAKEN_SCRIPT      = "spores/mycelium-weaken.js";
 const BACTERIA           = "spores/bacteria.js"; // legacy — swept on first tick
-const BATCHER_STATE_FILE = "batcher-state.json";
 
 const STEAL_FRACTION    = 0.10;
 const STEP_GAP_MS       = 20;
@@ -26,8 +26,9 @@ const PREP_MONEY_TOL    = 0.99;
 const SWITCH_MARGIN     = 1.25;
 
 class BatcherEngine extends EngineStoke {
-  #batchId = 0;
-  #swept   = false;
+  #batchId      = 0;
+  #swept        = false;
+  #lockedTarget = null;
 
   constructor(ns) {
     super(ns, "batching"); // reuses enable-batching / loop-delay-batching config
@@ -77,9 +78,11 @@ class BatcherEngine extends EngineStoke {
       }
     }
 
-    const target = await pickTarget(ns, config);
+    const { target, locked } = pickTarget(ns, config, this.#lockedTarget);
+    this.#lockedTarget = locked;
     if (!target) {
-      ns.write(BATCHER_STATE_FILE, JSON.stringify({ ts: Date.now(), phase: "IDLE", target: null, message: "no hackable target" }), "w");
+      ns.clearPort(BATCHER_PORT);
+      ns.writePort(BATCHER_PORT, JSON.stringify({ ts: Date.now(), phase: "IDLE", target: null, message: "no hackable target" }));
       this.#printDebug(null, zombies, [], { phase: "IDLE", message: "no hackable target" });
       return;
     }
@@ -95,7 +98,8 @@ class BatcherEngine extends EngineStoke {
       nextBatchId: () => ++this.#batchId,
     });
 
-    ns.write(BATCHER_STATE_FILE, JSON.stringify({ ts: Date.now(), phase: result.phase, target: target.name, message: result.message }), "w");
+    ns.clearPort(BATCHER_PORT);
+    ns.writePort(BATCHER_PORT, JSON.stringify({ ts: Date.now(), phase: result.phase, target: target.name, message: result.message }));
     this.#printDebug(target, zombies, snapshot, result);
   }
 

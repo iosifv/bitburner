@@ -5,7 +5,7 @@
  *
  * Usage: run 00-init.js
  */
-import { fillTerminal, printButton } from "lib/utils.js";
+import { fillTerminal, printButton } from "lib/ui.js";
 
 export async function main(ns) {
 

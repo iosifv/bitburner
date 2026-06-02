@@ -23,12 +23,9 @@ graph TD
         CO["Cortex Engine<br/>BUY-TOR · BUY-PROGRAMS · TRAIN-*<br/>STUDY-CS · CREATE-PROG · WORK-COMPANY"]
 
         SJ[("servers.json")]
-        STJ[("stats.json")]
-        PJ[("profits.json")]
 
         UTIL -->|"write"| SJ
         BA -->|"read"| SJ
-        UTIL -->|"write"| STJ & PJ
     end
 
     CJ -->|"getConfig()"| PE

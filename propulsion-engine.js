@@ -3,7 +3,7 @@ import { LOG_PORT, log } from "lib/logger.js";
 import { getConfig }     from "lib/quonfig.js";
 import { bitnodeReset }  from "lib/scout.js";
 import { killBrainworm } from "lib/telepathy.js";
-import { uiQuonfigHeight, uiQuonfigWidth, uiEngineWidth, uiTopPadding } from "./quonfig";
+import { uiQuonfigHeight, uiQuonfigWidth, uiEngineWidth, uiStatsHeight, uiTopPadding } from "env.js";
 
 const SUB_ENGINES = [
   { name: "scout",        script: "engine-v2-scout.js",        delay: 2  },
@@ -36,8 +36,8 @@ function buildLogFilters(ns) {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(uiEngineWidth, uiQuonfigHeight);
-  ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth - uiEngineWidth - 1, uiTopPadding);
+  ns.ui.resizeTail(uiEngineWidth, uiQuonfigHeight-uiStatsHeight);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth - uiEngineWidth, uiTopPadding + uiStatsHeight);
 
   ns.clearLog();
   log(ns, "print", "ENGINE-V2", "START", "orchestrator online");

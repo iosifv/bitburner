@@ -2,7 +2,7 @@
 import { EngineStoke } from "lib/engine-stoke.js";
 
 const DARKNET_PORT     = 666;
-const SPORE            = "spores/darknet-probe.js";
+const SPORE            = "spores/dark-tendril.js";
 const STALE_TIMEOUT_MS = 30_000;
 const RED              = String.fromCharCode(27) + "[31m";
 const YELLOW           = String.fromCharCode(27) + "[33m";

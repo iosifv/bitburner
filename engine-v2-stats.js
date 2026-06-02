@@ -1,117 +1,200 @@
 // Part of the engine-v2 system — engine-v2-stats.js: StatsEngine dashboard
-import { EngineStoke }                           from "lib/engine-stoke.js";
-import { sampleStats, updateProfits, sparkline } from "lib/stats.js";
+import { EngineStoke }           from "lib/engine-stoke.js";
+import { sampleStats, sparkline } from "lib/stats.js";
+import { getServers }             from "lib/scout.js";
+import { BATCHER_PORT }          from "env.js";
 import { uiEngineWidth, uiQuonfigWidth,
          uiBatchingWidth,
          uiStatsWidth, uiStatsHeight,
-         uiTopPadding }                          from "./quonfig.js";
+         uiTopPadding }          from "env.js";
+import { textCyane }             from "lib/ui.js";
 
-const STATE_FILE   = "stats.json";
-const PROFITS_FILE = "profits.json";
-const HISTORY_CAP  = 120; // ~4 min at 2s cadence
+
+// ── StatsHistory ──────────────────────────────────────────────────────────────
+
+const HISTORY_CAP = 120; // ~4 min at 2s cadence
+
+// In-memory FIFO of stat samples plus running accumulators (peak, per-target ledger).
+// All state resets automatically when an aug install is detected via epoch change.
+class StatsHistory {
+  #capacity;
+  #entries      = [];
+  #installEpoch = 0; // tracks aug resets — any epoch change wipes history clean
+
+  peakPerSec = 0;
+  byTarget   = {}; // name → { peakPerSec, ticks }
+
+  constructor(capacity = HISTORY_CAP) {
+    this.#capacity = capacity;
+  }
+
+  push(sample, installEpoch) {
+    // Wipe everything on aug install so peaks/ledger don't bleed across resets
+    if (this.#installEpoch !== installEpoch) {
+      this.#installEpoch = installEpoch;
+      this.peakPerSec    = 0;
+      this.byTarget      = {};
+      this.#entries      = [];
+    }
+
+    const prev    = this.#entries.at(-1);
+    const snap    = sample.incomeSourcesSnapshot;
+    const prevSnap = prev?.incomeSourcesSnapshot ?? {};
+    const dt      = prev ? (sample.ts - prev.ts) / 1000 : 0;
+
+    sample.sources = {};
+    for (const k of SOURCE_KEYS) {
+      if (k === "total")   continue; // derived below
+      if (k === "hacking") { sample.sources[k] = snap.hacking; continue; } // already a live rate
+      sample.sources[k] = dt > 0 ? ((snap[k] ?? 0) - (prevSnap[k] ?? 0)) / dt : 0;
+    }
+    sample.sources.total = SOURCE_KEYS
+      .filter(k => k !== "total")
+      .reduce((sum, k) => sum + (sample.sources[k] ?? 0), 0);
+
+    this.#entries.push(sample);
+    if (this.#entries.length > this.#capacity) this.#entries.shift();
+
+    this.peakPerSec = Math.max(this.peakPerSec, sample.sources.total);
+
+    if (sample.target) {
+      const e = (this.byTarget[sample.target] ??= { peakPerSec: 0, ticks: 0 });
+      e.peakPerSec = Math.max(e.peakPerSec, sample.sources.total);
+      e.ticks++;
+    }
+  }
+
+  get entries()      { return this.#entries; }
+  get latest()       { return this.#entries.at(-1) ?? null; }
+  get incomeWindow() { return this.#entries.map(s => s.sources?.total ?? 0); }
+
+  sourcesAvg(windowSize = 40) {
+    const window = this.#entries.slice(-windowSize);
+    if (!window.length) return {};
+    const avg = {};
+    for (const k of SOURCE_KEYS) {
+      avg[k] = window.reduce((sum, s) => sum + (s.sources?.[k] ?? 0), 0) / window.length;
+    }
+    return avg;
+  }
+}
+
+const SOURCE_KEYS = ["total", "hacking", "hacknet", "crime", "work", "codingcontract", "infiltration", "stock", "bladeburner", "corporation", "sleeves", "other"];
+
+// ── Dashboard helpers ─────────────────────────────────────────────────────────
+
+const DASH_WIDTH = 80;
+
+
+function sectionTitle(title) {
+  const prefix = `── ${textCyane(title)} `;
+  return prefix + "─".repeat( DASH_WIDTH - prefix.length);
+}
+
+// One filled square per power-of-2 RAM level, from 1 GB up to maxRam.
+function ramBar(currentRam, maxRam) {
+  const cur = Math.round(Math.log2(Math.max(1, currentRam)));
+  const max = Math.round(Math.log2(Math.max(1, maxRam)));
+  return "■ ".repeat(Math.min(cur, max)) + "□ ".repeat(Math.max(0, max - cur));
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+function printDashboard(ns, history) {
+  const sample = history.latest;
+  if (!sample) return;
+
+  const home       = ns.getServer("home");
+  const maxRam     = ns.cloud.getRamLimit();
+  const maxCoreLvl = 8; // home cores top out at 8
+
+  const allServers = getServers(ns, "all");
+  const zombies    = getServers(ns, "zombies");
+  const victims    = getServers(ns, "victims");
+  const botnet00   = allServers.find(s => s.name === "botnet-00");
+
+  let batcherState = null;
+  try {
+    const raw = ns.peek(BATCHER_PORT);
+    if (raw && raw !== "NULL PORT DATA") batcherState = JSON.parse(raw);
+  } catch {}
+
+  const window = history.incomeWindow.slice(-40);
+  const fmt    = v => ns.format.number(v).padStart(10);
+
+  ns.clearLog();
+
+  // ── NEXUS — home hardware status ───────────────────────────────────────────
+  ns.print(sectionTitle("HOME"));
+  ns.print(`  RAM     ${ramBar(home.maxRam, maxRam)} ${ns.format.ram(home.maxRam)}`);
+  ns.print(`  Cores   ${"■ ".repeat(home.cpuCores)}${"□ ".repeat(maxCoreLvl - home.cpuCores)} ${home.cpuCores}`);
+
+  // ── KINGDOM — botnet flagship + network overview ───────────────────────────
+  ns.print(sectionTitle("KINGDOM"));
+  if (botnet00) {
+    const b00Ram = ns.getServerMaxRam("botnet-00");
+    ns.print(`  Botnet  ${ramBar(b00Ram, maxRam)} ${ns.format.ram(b00Ram)}`);
+  }
+  ns.print(`  Network  ${allServers.length} total · ${zombies.length} zombies · ${victims.length} victims`);
+
+  // ── FINANCIAL — income, sources, per-target ledger ─────────────────────────
+  ns.print(sectionTitle("FINANCIAL"));
+  ns.print(`  trend  ${sparkline(window, history.peakPerSec || undefined)}`);
+
+  const avg = history.sourcesAvg();
+  const activeSources = SOURCE_KEYS
+    .map(k => ({ k, v: sample.sources[k] ?? 0 }))
+    .filter(({ k }) => (avg[k] ?? 0) > 0);
+  for (const { k, v } of activeSources) {
+    ns.print(`    ${k.padEnd(14)} now:${fmt(v)}  avg:${fmt(avg[k] ?? 0)}`);
+  }
+
+  // ── BATCHER ────────────────────────────────────────────────────────────────
+  ns.print(sectionTitle("BATCHER"));
+  const entries = Object.entries(history.byTarget).sort((a, b) => b[1].peakPerSec - a[1].peakPerSec);
+  if (entries.length) {
+    const [topName, topData] = entries[0];
+    ns.print(`  TARGET ${textCyane(topName)} for ${topData.ticks} ticks`);
+  }
+  if (batcherState) {
+    const age = ((Date.now() - batcherState.ts) / 1000).toFixed(0);
+    ns.print(`  ${batcherState.message}  (${age}s ago)`);
+  }
+  if (entries.length > 1) {
+    for (const [name, d] of entries.slice(1)) {
+      ns.print(`  ${name.padEnd(22)} ${String(d.ticks).padStart(6)} ticks`);
+    }
+  }
+
+  // ── TELEPATHY ──────────────────────────────────────────────────────────────
+  ns.print(sectionTitle("TELEPATHY"));
+  ns.print(`  Share x${ns.getSharePower().toFixed(4)}   Zombies ${ns.format.ram(sample.sharedRam ?? 0)}   DarkNet ~${ns.format.ram(sample.darknetSharedRam ?? 0)}`);
+}
+
+// ── Engine ────────────────────────────────────────────────────────────────────
 
 class StatsEngine extends EngineStoke {
   constructor(ns) {
     super(ns, "stats");
-    this.history = [];
-    this.profits = { installEpoch: 0, byTarget: {}, peakPerSec: 0 };
-
-    const raw = ns.read(STATE_FILE);
-    if (raw && raw !== "NULL PORT DATA") {
-      try { this.history = JSON.parse(raw); } catch {}
-    }
-
-    const rawP = ns.read(PROFITS_FILE);
-    if (rawP && rawP !== "NULL PORT DATA") {
-      try { this.profits = JSON.parse(rawP); } catch {}
-    }
+    this.history = new StatsHistory();
   }
 
   async tick() {
-    const ns           = this.ns;
-    const sample       = sampleStats(ns);
-    const installEpoch = ns.getResetInfo().lastAugReset;
-
-    updateProfits(this.profits, sample, installEpoch);
-    ns.write(PROFITS_FILE, JSON.stringify(this.profits), "w");
-
-    this.history.push(sample);
-    if (this.history.length > HISTORY_CAP) this.history.splice(0, this.history.length - HISTORY_CAP);
-    ns.write(STATE_FILE, JSON.stringify(this.history), "w");
-
-    let batcherState = null;
-    try {
-      const raw = ns.read("batcher-state.json");
-      if (raw && raw !== "NULL PORT DATA") batcherState = JSON.parse(raw);
-    } catch {}
-
-    const moneySources = ns.getMoneySources()?.sinceInstall ?? {};
-    this.#printDashboard(sample, batcherState, moneySources);
-  }
-
-  #printDashboard(sample, batcherState, moneySources) {
-    const ns  = this.ns;
-    const SEP = "─".repeat(52);
-    ns.clearLog();
-
-    const SOURCE_KEYS = ["hacking", "hacknet", "gang", "crime", "work", "codingcontract", "infiltration", "stock", "bladeburner", "corporation", "sleeves", "other"];
-    const activeSources = SOURCE_KEYS
-      .map(k => ({ k, v: moneySources[k] ?? 0 }))
-      .filter(({ v }) => v > 0)
-      .sort((a, b) => b.v - a.v);
-
-    ns.print(`══ STATS  ${new Date().toLocaleTimeString()} ${"═".repeat(31)}`);
-    ns.print(`  Income   ${ns.format.number(sample.incomePerSec).padStart(10)}/sec   Peak: ${ns.format.number(this.profits.peakPerSec ?? 0).padStart(10)}/sec`);
-    ns.print(`  Balance  ${ns.format.number(sample.playerMoney).padStart(10)}   Target: ${sample.target ?? "(none)"}`);
-    ns.print(`  Share    ${`x${ns.getSharePower().toFixed(4)}`.padStart(10)}`);
-    ns.print(`  Telepathy${ns.format.ram(sample.sharedRam ?? 0).padStart(11)}`);
-    ns.print(`  DarkNet ~${ns.format.ram(sample.darknetSharedRam ?? 0).padStart(11)}`);
-    ns.print(SEP);
-
-    ns.print(`  Since install:`);
-    for (let i = 0; i < activeSources.length; i += 2) {
-      const a = activeSources[i];
-      const b = activeSources[i + 1];
-      const left  = `${a.k.padEnd(14)} ${ns.format.number(a.v).padStart(10)}`;
-      const right = b ? `   ${b.k.padEnd(14)} ${ns.format.number(b.v).padStart(10)}` : "";
-      ns.print(`    ${left}${right}`);
-    }
-    ns.print(SEP);
-
-    const window  = this.history.map(s => s.incomePerSec).slice(-40);
-    const peak    = this.profits.peakPerSec ?? 0;
-    const avg     = window.length ? window.reduce((s, v) => s + v, 0) / window.length : 0;
-    const min     = window.length ? Math.min(...window) : 0;
-    const fmt     = v => ns.format.number(v).padStart(10);
-    ns.print(`  $/sec  now:${fmt(sample.incomePerSec)}  avg:${fmt(avg)}  min:${fmt(min)}  peak:${fmt(peak)}`);
-    ns.print(`  trend  ${sparkline(window, peak || undefined)}`);
-    ns.print(SEP);
-
-    if (batcherState) {
-      const age = ((Date.now() - batcherState.ts) / 1000).toFixed(0);
-      ns.print(`  Batcher  ${batcherState.phase.padEnd(10)} ${batcherState.message}  (${age}s ago)`);
-      ns.print(SEP);
-    }
-
-    const entries = Object.entries(this.profits.byTarget ?? {})
-      .sort((a, b) => b[1].peakPerSec - a[1].peakPerSec);
-
-    if (entries.length) {
-      ns.print(`  ${"TARGET".padEnd(22)} ${"PEAK $/sec".padStart(12)}  ${"TICKS".padStart(6)}`);
-      for (const [name, d] of entries) {
-        ns.print(`  ${name.padEnd(22)} ${ns.format.number(d.peakPerSec).padStart(12)}  ${String(d.ticks).padStart(6)}`);
-      }
-    } else {
-      ns.print("  No target data yet.");
-    }
+    const ns = this.ns;
+    this.history.push(sampleStats(ns), ns.getResetInfo().lastAugReset);
+    printDashboard(ns, this.history);
   }
 }
 
-export async function main(ns) {
+function initStatsWindow(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
-  ns.ui.resizeTail(uiStatsWidth, uiStatsHeight);
-  ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth - uiEngineWidth - uiBatchingWidth - uiStatsWidth - 3, uiTopPadding);
+  ns.ui.resizeTail(uiEngineWidth, uiStatsHeight);
+  ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth - uiEngineWidth, uiTopPadding);
+}
+
+export async function main(ns) {
+  initStatsWindow(ns);
   const engine = new StatsEngine(ns);
   while (true) {
     await engine.tick();
