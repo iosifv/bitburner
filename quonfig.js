@@ -9,7 +9,7 @@ export const uiBatchingHeight = uiQuonfigHeight;
 export const uiStatsWidth     = 625;
 export const uiStatsHeight    = 370;
 export const uiBoysWidth      = uiStatsWidth;
-export const uiBoysHeight     = 400;
+export const uiBoysHeight     = 620;
 
 let pendingEdit  = null;  // set by buttons, consumed by main loop
 let pushCfg      = null;  // set by component, called by main loop to push fresh cfg

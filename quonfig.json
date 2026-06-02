@@ -2,7 +2,7 @@
   "enable-scout": { "type": "boolean", "value": true, "label": "Enable Scout" },
   "enable-stats": { "type": "boolean", "value": true, "label": "Enable Stats" },
   "enable-batching": { "type": "boolean", "value": true, "label": "Enable Batching" },
-  "enable-botnet": { "type": "boolean", "value": false, "label": "Enable Botnet" },
+  "enable-botnet": { "type": "boolean", "value": true, "label": "Enable Botnet" },
   "enable-telepathy": { "type": "boolean", "value": false, "label": "Enable Telepathy" },
   "enable-hacknet": { "type": "boolean", "value": false, "label": "Enable Hacknet" },
   "enable-combat-gang": { "type": "boolean", "value": false, "label": "Enable Combat Gang" },

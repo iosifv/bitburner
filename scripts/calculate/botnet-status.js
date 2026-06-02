@@ -44,7 +44,7 @@ function printBotnetStatus(ns) {
     const totalStr = steps > 0 ? `$${ns.format.number(totalCost)}` : "—";
     const marker   = canAffordNext ? "✓" : "·";
 
-    ns.tprint(`${marker} ${s.name.padEnd(12)} ${`${ram}GB`.padStart(6)}  ${bar.padEnd(22)} ${nextStr.padStart(10)}  ${totalStr.padStart(10)}`);
+    ns.tprint(`${marker} ${s.name.padEnd(12)} ${ns.format.ram(ram).padStart(8)}  ${bar.padEnd(22)} ${nextStr.padStart(10)}  ${totalStr.padStart(10)}`);
   }
 
   ns.tprint("─".repeat(62));

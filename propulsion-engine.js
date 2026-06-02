@@ -2,6 +2,7 @@
 import { LOG_PORT, log } from "lib/logger.js";
 import { getConfig }     from "lib/quonfig.js";
 import { bitnodeReset }  from "lib/scout.js";
+import { killBrainworm } from "lib/telepathy.js";
 import { uiQuonfigHeight, uiQuonfigWidth, uiEngineWidth, uiTopPadding } from "./quonfig";
 
 const SUB_ENGINES = [
@@ -86,6 +87,7 @@ export async function main(ns) {
         if (!enabled && running) {
           ns.scriptKill(script, "home");
           log(ns, "print", "ENGINE-V2", "KILL", script);
+          if (name === "telepathy") killBrainworm(ns);
         }
       }
     }

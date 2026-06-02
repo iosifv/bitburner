@@ -238,6 +238,15 @@ const stateJoinFaction = {
   },
 };
 
+const stateDaedalus = {
+  name: "DAEDALUS",
+  shouldRun: ({ ns, player }) => player.factions.includes("Daedalus") && !ns.singularity.getOwnedAugmentations(true).includes("The Red Pill"),
+  tick: ({ ns, work }) => {
+    if (work?.type === "FACTION" && work?.factionName === "Daedalus") return;
+    ns.singularity.workForFaction("Daedalus", "hacking", false);
+  },
+};
+
 const stateRandomTravel = {
   name: "RANDOM-TRAVEL",
   shouldRun: ({ player }) => player.money > 10_000_000 && Math.random() < 0.5,
@@ -272,7 +281,8 @@ const STATES_ORDER = [
   stateTrainCombat,
   stateTrainCha,
   stateRandomTravel,
-  stateCreateProgram,
+  // stateCreateProgram,
+  stateDaedalus,
   stateHomicide,
   stateTrainHack,
 ];

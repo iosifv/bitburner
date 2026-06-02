@@ -63,6 +63,9 @@ class StatsEngine extends EngineStoke {
     ns.print(`══ STATS  ${new Date().toLocaleTimeString()} ${"═".repeat(31)}`);
     ns.print(`  Income   ${ns.format.number(sample.incomePerSec).padStart(10)}/sec   Peak: ${ns.format.number(this.profits.peakPerSec ?? 0).padStart(10)}/sec`);
     ns.print(`  Balance  ${ns.format.number(sample.playerMoney).padStart(10)}   Target: ${sample.target ?? "(none)"}`);
+    ns.print(`  Share    ${`x${ns.getSharePower().toFixed(4)}`.padStart(10)}`);
+    ns.print(`  Telepathy${ns.format.ram(sample.sharedRam ?? 0).padStart(11)}`);
+    ns.print(`  DarkNet ~${ns.format.ram(sample.darknetSharedRam ?? 0).padStart(11)}`);
     ns.print(SEP);
 
     ns.print(`  Since install:`);

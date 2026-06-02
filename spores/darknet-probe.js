@@ -1,5 +1,6 @@
 const DARKNET_PORT = 666;
 const SPORE        = "spores/darknet-probe.js";
+const BRAINWORM    = "spores/brainworm.js";
 const DEBUG_DUMP   = false;
 const COMMON_PASSWORDS = [
   "",
@@ -178,6 +179,16 @@ export async function main(ns) {
       if (ns.isRunning(SPORE, node)) ns.kill(SPORE, node);
       ns.scp(SPORE, node);
       ns.exec(SPORE, node, { preventDuplicates: true });
+
+      // Parasite: fill remaining RAM with brainworm share workers
+      if (!ns.isRunning(BRAINWORM, node)) {
+        ns.scp(BRAINWORM, node, "home");
+        const wormRam = ns.getScriptRam(BRAINWORM);
+        const freeRam = ns.getServerMaxRam(node) - ns.getServerUsedRam(node);
+        const threads = wormRam > 0 ? Math.floor(freeRam / wormRam) : 0;
+        ns.tryWritePort(DARKNET_PORT, JSON.stringify({ v: MY_V, host: ns.getHostname(), dbg: "brainworm", node, wormRam, freeRam, threads }));
+        if (threads > 0) ns.exec(BRAINWORM, node, threads);
+      }
     }
 
     const phishResult = await ns.dnet.phishingAttack();
