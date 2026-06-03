@@ -195,6 +195,7 @@ function initStatsWindow(ns) {
 
 export async function main(ns) {
   initStatsWindow(ns);
+  ns.atExit(() => ns.ui.closeTail());
   const engine = new StatsEngine(ns);
   while (true) {
     await engine.tick();

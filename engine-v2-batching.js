@@ -219,6 +219,7 @@ export async function main(ns) {
   ns.ui.openTail();
   ns.ui.resizeTail(uiBatchingWidth, uiBatchingHeight);
   ns.ui.moveTail(ns.ui.windowSize()[0] - uiQuonfigWidth - uiEngineWidth - uiBatchingWidth - 2, uiTopPadding);
+  ns.atExit(() => ns.ui.closeTail());
   const engine = new BatcherEngine(ns);
   while (true) {
     await engine.tick();

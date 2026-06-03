@@ -362,6 +362,7 @@ class CortexEngine extends EngineStoke {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
+  ns.atExit(() => ns.ui.closeTail());
   const engine = new CortexEngine(ns);
   while (true) {
     await engine.tick();

@@ -342,6 +342,7 @@ class CombatGangEngine extends EngineStoke {
 export async function main(ns) {
   ns.disableLog("ALL");
   ns.ui.openTail();
+  ns.atExit(() => ns.ui.closeTail());
   const engine = new CombatGangEngine(ns);
   // sync to gang tick cadence before entering the loop
   engine.tickDurationMs = await ns.gang.nextUpdate();

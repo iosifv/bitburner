@@ -168,6 +168,7 @@ function initBoysWindowSetup(ns) {
 
 export async function main(ns) {
   initBoysWindowSetup(ns);
+  ns.atExit(() => ns.ui.closeTail());
   const engine = new TheBoysEngine(ns);
   engine.tickDurationMs = await ns.gang.nextUpdate();
   engine.tickStartTime  = Date.now();
