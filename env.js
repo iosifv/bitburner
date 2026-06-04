@@ -24,5 +24,5 @@ export const uiBatchingHeight = uiQuonfigHeight;
 export const uiBoysWidth      = uiStatsWidth;
 export const uiBoysHeight     = 620;
 
-export const uiDarknetWidth   = uiStatsWidth;
-export const uiDarknetHeight  = 620;
+export const uiDarknetWidth   = 800;
+export const uiDarknetHeight  = uiQuonfigHeight - 30;

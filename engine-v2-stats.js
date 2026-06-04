@@ -2,12 +2,13 @@
 import { EngineStoke }           from "lib/engine-stoke.js";
 import { sampleStats, sparkline } from "lib/stats.js";
 import { getServers }             from "lib/scout.js";
+import { getDarknetNodes, getDarknetMeta } from "lib/darknet.js";
 import { BATCHER_PORT }          from "env.js";
 import { uiEngineWidth, uiQuonfigWidth,
          uiBatchingWidth,
          uiStatsWidth, uiStatsHeight,
          uiTopPadding }          from "env.js";
-import { textCyane }             from "lib/ui.js";
+import { textCyane, textGreen, textRed } from "lib/ui.js";
 
 
 // ── StatsHistory ──────────────────────────────────────────────────────────────
@@ -91,6 +92,14 @@ function sectionTitle(title) {
   return prefix + "─".repeat( DASH_WIDTH - prefix.length);
 }
 
+function formatInstability(instab) {
+  const timeout = instab?.authenticationTimeoutChance ?? 0;
+  const speed   = instab?.authenticationDurationMultiplier ?? 1;
+  if (timeout > 0.5 || speed > 4) return textRed("Critical");
+  if (timeout > 0   || speed > 1) return textRed(`Unstable (${speed}x / ${(timeout * 100).toFixed(0)}% timeout)`);
+  return "Ok!";
+}
+
 // One filled square per power-of-2 RAM level, from 1 GB up to maxRam.
 function ramBar(currentRam, maxRam) {
   const cur = Math.round(Math.log2(Math.max(1, currentRam)));
@@ -165,6 +174,22 @@ function printDashboard(ns, history) {
       ns.print(`  ${name.padEnd(22)} ${String(d.ticks).padStart(6)} ticks`);
     }
   }
+
+  // ── DARKNET ────────────────────────────────────────────────────────────────
+  ns.print(sectionTitle("DARKNET"));
+  try {
+    const instab      = ns.dnet.getDarknetInstability();
+    const stasisUsed  = ns.dnet.getStasisLinkedServers().length;
+    const stasisLimit = ns.dnet.getStasisLinkLimit();
+    const dnetNodes   = getDarknetNodes(ns, "all");
+    const dnetMeta    = getDarknetMeta(ns);
+    const lootCount   = dnetNodes.filter(r => Object.keys(r.loot ?? {}).length > 0).length;
+    const cacheCount  = dnetNodes.filter(r => r.caches?.length).length;
+    const phishOk     = dnetMeta.phishSuccesses ?? 0;
+    const phishFail   = dnetMeta.phishFailures  ?? 0;
+    ns.print(`  Instability  ${formatInstability(instab)}   Stasis ${stasisUsed}/${stasisLimit}`);
+    ns.print(`  Caches ${cacheCount}   Loot ${lootCount}   Phishing ${textGreen(`✓${phishOk}`)} ${textRed(`✗${phishFail}`)}`);
+  } catch { /* darknet not yet unlocked */ }
 
   // ── TELEPATHY ──────────────────────────────────────────────────────────────
   ns.print(sectionTitle("TELEPATHY"));

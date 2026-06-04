@@ -13,6 +13,7 @@ async function main(ns) {
     const minSec = ns.getServerMinSecurityLevel(target);
     const money = ns.getServerMoneyAvailable(target);
     const maxMon = ns.getServerMaxMoney(target);
+    
     if (sec > minSec + secPad) {
       ns.print(`[WEAKEN] sec=${sec.toFixed(2)} min=${minSec}`);
       await ns.weaken(target);

@@ -5,9 +5,7 @@
   "enable-botnet": { "type": "boolean", "value": true, "label": "Botnet" },
   "enable-telepathy": { "type": "boolean", "value": false, "label": "Telepathy" },
   "enable-hacknet": { "type": "boolean", "value": false, "label": "Hacknet" },
-  "enable-combat-gang": { "type": "boolean", "value": false, "label": "Combat Gang" },
   "enable-the-boys": { "type": "boolean", "value": false, "label": "The Boys" },
-  "enable-hacking-gang": { "type": "boolean", "value": false, "label": "Hacking Gang" },
   "enable-cortex": { "type": "boolean", "value": false, "label": "Cortex" },
   "enable-darknet": { "type": "boolean", "value": false, "label": "Darknet" },
 
@@ -21,11 +19,7 @@
   "hacknet-budget-ratio": { "type": "number", "value": 0.25, "label": "Budget Ratio" },
 
 
-  "gang-ascension-threshold": { "type": "number", "value": 1.4, "label": "Ascension Mult." },
-  "gang-wanted-penalty-threshold": { "type": "number", "value": 0.1, "label": "Wanted Penalty" },
   "gang-buy-equipment": { "type": "boolean", "value": true, "label": "Buy Equipment" },
-  "gang-ascension-equip-margin": { "type": "number", "value": 0.15, "label": "Equip stop margin" },
-  "gang-train-bottom-n": { "type": "number", "value": 3, "label": "Train combat" },
 
 
 

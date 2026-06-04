@@ -1,7 +1,7 @@
 const DARKNET_ROAMING_PORT   = 666;
 const DARKNET_BROADCAST_PORT = 1666;
 const SPORE         = "spores/dark-tendril.js";
-const BRAINWORM     = "spores/brainworm.js";
+
 const LOOP_MS       = 2_000;
 const DEBUG_DUMP    = false;
 
@@ -34,90 +34,175 @@ class DarkAuthenticator {
     "dragon", "123123", "baseball", "abc123", "football", "monkey", "letmein"
   ];
 
+  static #deskMemo = {
+    name: "DeskMemo_3.1",
+    canAttempt(server) {
+      return server.modelId == "DeskMemo_3.1";
+    },
+    async crack(ns, node, server) {
+      const detail = server.passwordHint.replace(/\D/g, "");
+      return { success: await ns.dnet.authenticate(node, detail), detail };
+    },
+  };
+
+  static #cloudBlare = {
+    name: "CloudBlare(tm)",
+    canAttempt(server) {
+      return server.modelId == "CloudBlare(tm)" ||
+            server.passwordHint.includes("Type the numbers to prove you are human");
+    },
+    async crack(ns, node, server) {
+      const detail = server.data.replace(/\D/g, "");
+      return { success: await ns.dnet.authenticate(node, detail), detail };
+    },
+  };
+
+  static #freshInstall = {
+    name: "FreshInstall_1.0",
+    canAttempt(server) {
+      return server.modelId === "FreshInstall_1.0";
+    },
+    async crack(ns, node, server) {
+      let detail = null;
+      if (server.passwordFormat == "numeric") {
+        if (server.passwordLength == 4) detail = "0000";
+        if (server.passwordLength == 5) detail = "12345";
+      }
+      if (server.passwordFormat == "alphabetic") {
+        if (server.passwordLength == 5) detail = "admin";
+        if (server.passwordLength == 8) detail = "password";
+      }
+      if (!detail) return { success: false };
+      return { success: await ns.dnet.authenticate(node, detail), detail };
+    },
+  };
+
+  static #zeroLogon = {
+    name: "zero-logon",
+    canAttempt(server) {
+      return server.modelId.includes("ZeroLogon");
+    },
+    async crack(ns, node, server) {
+      return { success: await ns.dnet.authenticate(node, ""), "" };
+    },
+  };
+
+  static #laika4 = {
+    name: "Laika4",
+    canAttempt(server) {
+      return server.modelId.includes("Laika4");
+    },
+    async crack(ns, node, server) {
+      let detail = null;
+      if (server.passwordFormat == "numeric") {
+        if (server.passwordLength == 4) detail = "";
+      }
+      if (server.passwordFormat == "alphabetic") {
+        if (server.passwordLength == 3) detail = "admin";
+      }
+      if (!detail) return { success: false };
+      return { success: await ns.dnet.authenticate(node, detail), detail };
+    },
+  };
+
+  static #mastermindSpicy = {
+    name: "mastermind-spicy",
+    canAttempt(server) {
+      return server.modelId.toLowerCase() === "ratemypix.auth";
+    },
+    async crack(ns, node) {
+      const countPeppers = str => (String(str).match(/🌶️/gu) ?? []).length;
+      const pepperScore  = (guess, target) => {
+        let score = 0;
+        for (let i = 0; i < 4; i++) if (guess[i] === target[i]) score++;
+        return score;
+      };
+
+      let candidates = Array.from({ length: 10000 }, (_, i) => i.toString().padStart(4, "0"));
+
+      try {
+        const logs = await ns.dnet.heartbleed(node) ?? [];
+        for (const entry of logs) {
+          if (entry.passwordAttempted == null) continue;
+          const guess   = String(entry.passwordAttempted).padStart(4, "0");
+          const peppers = countPeppers(entry.data);
+          candidates    = candidates.filter(c => pepperScore(guess, c) === peppers);
+        }
+      } catch {}
+
+      let guess = candidates[0] ?? "1234";
+
+      while (candidates.length > 0) {
+        if (await ns.dnet.authenticate(node, guess)) return { success: true, detail: guess };
+
+        let peppers = 0;
+        try {
+          const logs  = await ns.dnet.heartbleed(node) ?? [];
+          const entry = [...logs].reverse().find(e => String(e.passwordAttempted).padStart(4, "0") === guess);
+          if (entry) peppers = countPeppers(entry.data);
+        } catch {}
+
+        candidates = candidates.filter(c => pepperScore(guess, c) === peppers);
+        if (!candidates.length) break;
+        guess = candidates[0];
+      }
+
+      return { success: false };
+    },
+  };
+
+  static #romanNumeral = {
+    name: "roman-numeral",
+    canAttempt(server) {
+      return server.data.length > 0 && /^[IVXLCDM]+$/.test(server.data);
+    },
+    async crack(ns, node, server) {
+      const detail = String(DarkAuthenticator.#fromRoman(server.data));
+      return { success: await ns.dnet.authenticate(node, detail), detail };
+    },
+  };
+
+  static #kingOfTheHill = {
+    name: "KingOfTheHill-💪",
+    canAttempt(server) {
+      return server.modelId.includes("KingOfTheHill");
+    },
+    async crack(ns, node) {
+      for (let i = 0; i < 100; i++) {
+        const detail = i.toString().padStart(2, "0");
+        if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
+      }
+      return { success: false };
+    },
+  };
+
+  static #commonPassword = {
+    name: "common-password",
+    canAttempt() { return true; },
+    async crack(ns, node) {
+      for (const detail of DarkAuthenticator.#commonPasswords) {
+        if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
+      }
+      return { success: false };
+    },
+  };
+
   static #strategies = [
-    {
-      name: "pin-in-hint",
-      canAttempt(server) {
-        return server.passwordHint.includes("PIN")
-            || server.passwordHint.includes("set to")
-            || server.passwordHint.includes("The key is")
-            || server.passwordHint.includes("The secret is")
-            || server.passwordHint.includes("Remember to use");
-      },
-      async crack(ns, node, server) {
-        const detail = server.passwordHint.replace(/\D/g, "");
-        return { success: await ns.dnet.authenticate(node, detail), detail };
-      },
-    },
-    {
-      name: "pin-in-data",
-      canAttempt(server) {
-        return server.passwordHint.includes("Type the numbers to prove you are human");
-      },
-      async crack(ns, node, server) {
-        const detail = server.data.replace(/\D/g, "");
-        return { success: await ns.dnet.authenticate(node, detail), detail };
-      },
-    },
-    {
-      name: "fresh-install",
-      canAttempt(server) {
-        return server.modelId.includes("FreshInstall");
-      },
-      async crack(ns, node, server) {
-        let detail = null;
-        if (server.passwordFormat == "numeric") {
-          if (server.passwordLength == 4) detail = "0000";
-          if (server.passwordLength == 5) detail = "12345";
-        }
-        if (server.passwordFormat == "alphabetic") {
-          if (server.passwordLength == 5) detail = "admin";
-          if (server.passwordLength == 8) detail = "password";
-        }
-        if (!detail) return { success: false };
-        return { success: await ns.dnet.authenticate(node, detail), detail };
-      },
-    },
-    {
-      name: "roman-numeral",
-      canAttempt(server) {
-        return server.data.length > 0 && /^[IVXLCDM]+$/.test(server.data);
-      },
-      async crack(ns, node, server) {
-        const detail = String(DarkAuthenticator.#fromRoman(server.data));
-        return { success: await ns.dnet.authenticate(node, detail), detail };
-      },
-    },
-    {
-      name: "brute-force",
-      canAttempt(server) {
-        return server.passwordLength == 2;
-      },
-      async crack(ns, node) {
-        for (let i = 0; i < 100; i++) {
-          const detail = i.toString().padStart(2, "0");
-          if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
-        }
-        return { success: false };
-      },
-    },
-    {
-      name: "common-password",
-      canAttempt() {
-        return true;
-      },
-      async crack(ns, node) {
-        for (const detail of DarkAuthenticator.#commonPasswords) {
-          if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
-        }
-        return { success: false };
-      },
-    },
+    DarkAuthenticator.#freshInstall,
+    DarkAuthenticator.#kingOfTheHill,
+    DarkAuthenticator.#mastermindSpicy,
+    DarkAuthenticator.#zeroLogon,
+    DarkAuthenticator.#deskMemo,
+    DarkAuthenticator.#cloudBlare,
+
+    
+    // DarkAuthenticator.#laika4,
+    // DarkAuthenticator.#romanNumeral,
+    // DarkAuthenticator.#commonPassword,
   ];
 
   #knownSecrets = new Map(); // node → secret (downlinked from engine)
 
-  // Called each tick with the engine's latest broadcast object { node: secret, ... }
   syncSecrets(obj) {
     this.#knownSecrets = new Map(Object.entries(obj ?? {}));
   }
@@ -167,22 +252,6 @@ class DarkAction {
       },
     },
     {
-      name: "brainworm",
-      canAttempt(ns, node, server) {
-        return server.isOnline && server.isConnectedToCurrentServer && server.hasSession
-            && !ns.isRunning(BRAINWORM, node);
-      },
-      async execute(ns, node) {
-        ns.scp(BRAINWORM, node, "home");
-        const wormRam = ns.getScriptRam(BRAINWORM);
-        const freeRam = ns.getServerMaxRam(node) - ns.getServerUsedRam(node);
-        const threads = wormRam > 0 ? Math.floor(freeRam / wormRam) : 0;
-        if (threads <= 0) return { success: false };
-        const pid = ns.exec(BRAINWORM, node, threads);
-        return { success: pid > 0, threads };
-      },
-    },
-    {
       name: "exfiltrate",
       canAttempt(ns, node, server) {
         return server.isOnline && server.isConnectedToCurrentServer && server.hasSession;
@@ -201,10 +270,39 @@ class DarkAction {
         return { success: true, loot };
       },
     },
+    {
+      name: "memoryReallocation",
+      canAttempt(ns, node, server) {
+        return server.isOnline && server.isConnectedToCurrentServer && server.hasSession;
+      },
+      async execute(ns, node) {
+        try {
+          const result = await ns.dnet.memoryReallocation(node);
+          return { success: !!result, result };
+        } catch {
+          return { success: false };
+        }
+      },
+    },
+    // {
+    //   name: "induceServerMigration",
+    //   canAttempt(ns, node, server) {
+    //     return server.isOnline && server.isConnectedToCurrentServer && server.hasSession;
+    //   },
+    //   async execute(ns, node) {
+    //     try {
+    //       const result = await ns.dnet.induceServerMigration(node);
+    //       return { success: !!result, result };
+    //     } catch {
+    //       return { success: false };
+    //     }
+    //   },
+    // },
   ];
+  
 
   // Runs all applicable action strategies against a node; returns result array.
-  async run(ns, node, server) {
+  async runAction(ns, node, server) {
     const results = [];
     for (const action of DarkAction.#strategies) {
       if (!action.canAttempt(ns, node, server)) continue;
@@ -265,23 +363,39 @@ class DarkTendril {
 
     for (const node of this.ns.dnet.probe()) {
       const server      = this.ns.dnet.getServerDetails(node);
+      const authStart   = Date.now();
       const auth        = await this.auth.authenticate(this.ns, node, server);
+      const authMs      = Date.now() - authStart;
       const freshServer = auth.success ? this.ns.dnet.getServerDetails(node) : server;
 
       if (DEBUG_DUMP && auth.success) this.#report({ dbg: "server-dump", node, server: freshServer });
 
+      let depth = null, charismaReq = null;
+      try { depth       = this.ns.dnet.getDepth(node); }                       catch {}
+      try { charismaReq = this.ns.dnet.getServerRequiredCharismaLevel(node); } catch {}
+
       // Report auth result + live connectivity so engine always has current state
       this.#report({
         node,
-        auth:       { success: auth.success, strategy: auth.strategy },
-        secret:     auth.secret,
-        isOnline:   freshServer.isOnline,
-        hasSession: freshServer.hasSession,
-        serverInfo: auth.success ? undefined : server,
-        ts:         Date.now(),
+        auth:        { success: auth.success, strategy: auth.strategy },
+        secret:      auth.secret,
+        isOnline:    freshServer.isOnline,
+        hasSession:  freshServer.hasSession,
+        serverInfo:  auth.success ? undefined : server,
+        depth,
+        charismaReq,
+        authMs,
+        crackingInfo: {
+          hint:   server.passwordHint,
+          data:   server.data,
+          length: server.passwordLength,
+          format: server.passwordFormat,
+          model:  server.modelId,
+        },
+        ts:          Date.now(),
       });
 
-      const actionResults = await this.actions.run(this.ns, node, freshServer);
+      const actionResults = await this.actions.runAction(this.ns, node, freshServer);
       for (const result of actionResults) {
         if (result.loot) this.#report({ node, loot: result.loot });
       }
