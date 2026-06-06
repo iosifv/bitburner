@@ -8,6 +8,7 @@
   "enable-the-boys": { "type": "boolean", "value": false, "label": "The Boys" },
   "enable-cortex": { "type": "boolean", "value": false, "label": "Cortex" },
   "enable-darknet": { "type": "boolean", "value": false, "label": "Darknet" },
+  "enable-sniffer": { "type": "boolean", "value": false, "label": "Sniffer" },
 
   "ops-forced-target": { "type": "string", "value": " ", "label": "Force Target" },
   "ops-free-home-ram": { "type": "number", "value": 70, "label": "Free home RAM" },

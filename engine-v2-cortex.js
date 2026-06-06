@@ -278,14 +278,16 @@ const stateHomicide = {
 
 /** Major corporations to climb. Listed highest-priority first. */
 const BIG_COMPANIES = [
-  { name: "ECorp",                  faction: "ECorp",                  city: "Aevum"      },
-  { name: "MegaCorp",               faction: "MegaCorp",               city: "Sector-12"  },
-  { name: "Blade Industries",       faction: "Blade Industries",       city: "Sector-12"  },
-  { name: "NWO",                    faction: "NWO",                    city: "Volhaven"   },
-  { name: "Four Sigma",             faction: "Four Sigma",             city: "Sector-12"  },
-  { name: "OmniTek Incorporated",   faction: "OmniTek Incorporated",   city: "Volhaven"   },
-  { name: "KuaiGong International", faction: "KuaiGong International", city: "Chongqing"  },
-  { name: "Fulcrum Technologies",   faction: "Fulcrum Secret Technologies", city: "Aevum"  },
+  { name: "ECorp",                  faction: "ECorp",                       city: "Aevum"     },
+  { name: "MegaCorp",               faction: "MegaCorp",                    city: "Sector-12" },
+  { name: "Blade Industries",       faction: "Blade Industries",            city: "Sector-12" },
+  { name: "NWO",                    faction: "NWO",                         city: "Volhaven"  },
+  { name: "Four Sigma",             faction: "Four Sigma",                  city: "Sector-12" },
+  { name: "OmniTek Incorporated",   faction: "OmniTek Incorporated",        city: "Volhaven"  },
+  { name: "KuaiGong International", faction: "KuaiGong International",      city: "Chongqing" },
+  { name: "Bachman & Associates",   faction: "Bachman & Associates",        city: "Aevum"     },
+  { name: "Clarke Incorporated",    faction: "Clarke Incorporated",         city: "Aevum"     },
+  { name: "Fulcrum Technologies",   faction: "Fulcrum Secret Technologies", city: "Aevum"     },
 ];
 
 const stateWorkCompany = {

@@ -1,6 +1,7 @@
 const DARKNET_ROAMING_PORT   = 666;
 const DARKNET_BROADCAST_PORT = 1666;
 const SPORE         = "spores/dark-tendril.js";
+const STASIS_SPORE  = "spores/dark-stasis.js";
 
 const LOOP_MS       = 2_000;
 const DEBUG_DUMP    = true;
@@ -11,6 +12,13 @@ function sporeFingerprint(content) {
   for (let i = 0; i < content.length; i++) h = (h * 31 + content.charCodeAt(i)) >>> 0;
   return (h >>> 0).toString(16).padStart(8, "0");
 }
+
+// ── Auth safety limits ────────────────────────────────────────────────────────
+// These prevent a server-controlled passwordLength / data field from producing
+// a candidate space large enough to OOM the browser tab (black-screen crash).
+const MAX_CANDIDATE_SPACE = 200_000; // refuse to materialise a search space larger than this
+const MAX_AUTH_ATTEMPTS   = 400;     // hard ceiling on authenticate() calls per crack invocation
+const CRACK_TRACE         = "crack-trace.txt"; // breadcrumb cleared after every crack; non-empty after reload = crash site
 
 // ── DarkAuthenticator ─────────────────────────────────────────────────────────
 // Strategy contract: crack(ns, node, server) → { success: bool, detail?: string }
@@ -40,6 +48,8 @@ class DarkAuthenticator {
        */
       async crack(ns, node, server) {
         const digits = server.data.replace(/\D/g, "").split("");
+        if (digits.length > 8)
+          return { success: false, debug: { aborted: true, reason: "permute-too-large", digits: digits.length } };
         // Generator: yields one permutation at a time so we never hold all n! arrays in memory at once.
         function* permute(arr) {
           if (arr.length <= 1) { yield arr; return; }
@@ -48,7 +58,10 @@ class DarkAuthenticator {
             for (const p of permute(rest)) yield [arr[i], ...p];
           }
         }
+        let attempts = 0;
         for (const perm of permute(digits)) {
+          if (++attempts > MAX_AUTH_ATTEMPTS)
+            return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "PHP 5.4" } };
           const detail = perm.join("");
           if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
         }
@@ -103,6 +116,10 @@ class DarkAuthenticator {
        */
       async crack(ns, node, server) {
         const len          = server.passwordLength;
+        const space        = 10 ** len;
+        if (space > MAX_CANDIDATE_SPACE)
+          return { success: false, debug: { aborted: true, reason: "space-too-large", space, len, model: "RateMyPix.Auth" } };
+
         const countPeppers = str => (String(str).match(/🌶️/gu) ?? []).length;
         const pepperScore  = (guess, target) => {
           let score = 0;
@@ -110,7 +127,7 @@ class DarkAuthenticator {
           return score;
         };
 
-        let candidates = Array.from({ length: 10 ** len }, (_, i) => i.toString().padStart(len, "0"));
+        let candidates = Array.from({ length: space }, (_, i) => i.toString().padStart(len, "0"));
 
         try {
           const logs = await ns.dnet.heartbleed(node) ?? [];
@@ -123,8 +140,11 @@ class DarkAuthenticator {
         } catch {}
 
         let guess = candidates[0] ?? "0".repeat(len);
+        let attempts = 0;
 
         while (candidates.length > 0) {
+          if (++attempts > MAX_AUTH_ATTEMPTS)
+            return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "RateMyPix.Auth" } };
           if (await ns.dnet.authenticate(node, guess)) return { success: true, detail: guess };
 
           let peppers = 0;
@@ -271,7 +291,7 @@ class DarkAuthenticator {
             }
             try {
               const freshRaw = await ns.dnet.heartbleed(node);
-              const fresh    = Array.isArray(freshRaw) ? freshRaw : [];
+              const fresh    = Array.isArray(freshRaw) ? Array.from(freshRaw) : [];
               const entry    = [...fresh].reverse().find(e => parseInt(e.passwordAttempted) === mid);
               if (entry) {
                 const hint = String(entry.data).trim().toLowerCase();
@@ -286,7 +306,7 @@ class DarkAuthenticator {
 
         try {
           const raw  = await ns.dnet.heartbleed(node);
-          const logs = Array.isArray(raw) ? raw : [];
+          const logs = Array.isArray(raw) ? Array.from(raw) : [];
           const hasAltitudeFeedback = logs.some(e => parsePeak(e.message) != null);
           if (hasAltitudeFeedback) {
             const result = await tryAltitudeModel(logs);
@@ -418,7 +438,10 @@ class DarkAuthenticator {
           }
         } catch {}
 
+        let attempts = 0;
         while (candidates.length > 0) {
+          if (++attempts > MAX_AUTH_ATTEMPTS)
+            return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "OpenWebAccessPoint" } };
           const detail = candidates[0];
           if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
 
@@ -550,7 +573,10 @@ class DarkAuthenticator {
           await readHeartbleed();
         }
 
+        let attempts = 0;
         for (const c of candidates) {
+          if (++attempts > MAX_AUTH_ATTEMPTS)
+            return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "BigMo%od" } };
           const detail = c.toString().padStart(5, "0");
           if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
         }
@@ -594,7 +620,10 @@ class DarkAuthenticator {
           }
         } catch {}
 
+        let attempts = 0;
         while (candidates.length > 0) {
+          if (++attempts > MAX_AUTH_ATTEMPTS)
+            return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "DeepGreen" } };
           const detail = candidates[0];
           if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
 
@@ -656,7 +685,10 @@ class DarkAuthenticator {
           }
         } catch {}
 
+        let attempts = 0;
         while (possible.every(s => s.size > 0)) {
+          if (++attempts > MAX_AUTH_ATTEMPTS)
+            return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "NIL" } };
           const detail = makeGuess();
           if (await ns.dnet.authenticate(node, detail)) return { success: true, detail };
 
@@ -829,9 +861,12 @@ class DarkAuthenticator {
       async crack(ns, node, server) {
         const length = server.passwordLength ?? 6;
         const known  = [];
+        let attempts = 0;
 
         outer: while (known.length < length) {
           for (let digit = 0; digit <= 9; digit++) {
+            if (++attempts > MAX_AUTH_ATTEMPTS)
+              return { success: false, debug: { aborted: true, reason: "max-attempts", attempts, model: "2G_cellular" } };
             const candidate = known.join("") + String(digit) + "0".repeat(length - known.length - 1);
 
             if (await ns.dnet.authenticate(node, candidate)) return { success: true, detail: candidate };
@@ -850,6 +885,16 @@ class DarkAuthenticator {
           }
           break;
         }
+
+        return { success: false };
+      },
+    }],
+    ["m3rc1l3ss_l4byr1nth", {
+      /**
+       
+      */
+      async crack(ns, node, server) {
+        
 
         return { success: false };
       },
@@ -874,13 +919,18 @@ class DarkAuthenticator {
     // Tier 2: cold path — exact modelId lookup
     const strategy = DarkAuthenticator.#strategies.get(server.modelId);
     if (strategy) {
+      // Write a breadcrumb before starting; cleared immediately after. A non-empty
+      // crack-trace.txt surviving a reload pinpoints which strategy caused the crash.
+      try { ns.write(CRACK_TRACE, JSON.stringify({ ts: Date.now(), host: ns.getHostname(), node, model: server.modelId, len: server.passwordLength }), "w"); } catch {}
       try {
         const r = await strategy.crack(ns, node, server);
+        try { ns.write(CRACK_TRACE, "", "w"); } catch {}
         if (r.success) {
           return { success: true, strategy: server.modelId, secret: r.detail };
         }
         return { success: false, strategy: null, secret: undefined, debug: r.debug ?? { tried: r.detail } };
       } catch (e) {
+        try { ns.write(CRACK_TRACE, "", "w"); } catch {}
         return { success: false, strategy: null, secret: undefined, debug: { error: e?.message ?? String(e) } };
       }
     }
@@ -902,8 +952,25 @@ class DarkAction {
       },
       async execute(ns, node) {
         if (ns.isRunning(SPORE, node)) ns.kill(SPORE, node);
-        ns.scp(SPORE, node);
+        ns.scp([SPORE, STASIS_SPORE], node);
         const pid = ns.exec(SPORE, node, { preventDuplicates: true });
+        return { success: pid > 0 };
+      },
+    },
+    {
+      name: "stasisLink",
+      canAttempt(ns, node, server) {
+        const wantsStasis = node === "m3rc1l3ss_l4byr1nth"
+          || ns.ls(node).some(f => f.toUpperCase() === "STORM_SEED.EXE");
+        return server.isOnline && server.isConnectedToCurrentServer && server.hasSession && wantsStasis;
+      },
+      async execute(ns, node) {
+        // For m3rc1l3ss_l4byr1nth: stasis the PARENT (this host) to buy cracking time.
+        // For storm-seed nodes: stasis the node itself so we can work on it remotely.
+        const target = node === "m3rc1l3ss_l4byr1nth" ? ns.getHostname() : node;
+        if (ns.isRunning(STASIS_SPORE, target)) return { success: true };
+        ns.scp(STASIS_SPORE, target);
+        const pid = ns.exec(STASIS_SPORE, target, { preventDuplicates: true });
         return { success: pid > 0 };
       },
     },
@@ -937,21 +1004,6 @@ class DarkAction {
           return { success: !!result, result };
         } catch {
           return { success: false };
-        }
-      },
-    },
-    {
-      name: "stormSeed",
-      canAttempt(ns, node, server) {
-        return server.isOnline && server.isConnectedToCurrentServer && server.hasSession
-          && ns.ls(node).some(f => f.toUpperCase() === "STORM_SEED.EXE");
-      },
-      async execute(ns, node) {
-        try {
-          const result = await ns.dnet.unleashStormSeed();
-          return { success: true, result };
-        } catch (e) {
-          return { success: false, error: e?.message ?? String(e) };
         }
       },
     },
@@ -1030,7 +1082,9 @@ class DarkTendril {
 
   async tick() {
     this.#syncSecrets();
-    this.#report({ ts: Date.now() });
+    let hostServer = null;
+    try { hostServer = this.ns.dnet.getServerDetails(this.host); } catch {}
+    this.#report({ ts: Date.now(), hostServer });
 
     for (const node of this.ns.dnet.probe()) {
       const server      = this.ns.dnet.getServerDetails(node);
@@ -1067,10 +1121,13 @@ class DarkTendril {
         ts:          Date.now(),
       });
 
+      if (auth.success && this.ns.ls(node).some(f => f.toUpperCase() === "STORM_SEED.EXE")) {
+        this.#report({ node, hasStormSeed: true });
+      }
+
       const actionResults = await this.actions.runAction(this.ns, node, freshServer);
       for (const result of actionResults) {
         if (result.loot) this.#report({ node, loot: result.loot });
-        if (result.name === "stormSeed" && result.success) this.#report({ node, stormSeed: { result: result.result, ts: Date.now() } });
       }
     }
 

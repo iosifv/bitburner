@@ -1,22 +1,36 @@
 // Part of the engine-v2 system — engine-v2-darknet.js: DarknetEngine runner
 import { EngineStoke }                              from "lib/engine-stoke.js";
-import { writeLedger }                              from "lib/darknet.js";
+import { writeLedger, clearLedger }                 from "lib/darknet.js";
 import { textCyane, textYellow, textGreen, textRed, createButton } from "lib/ui.js";
-import { DARKNET_ROAMING_PORT, DARKNET_BROADCAST_PORT,
+import { DARKNET_ROAMING_PORT, DARKNET_BROADCAST_PORT, DARKNET_ROAMING_TAP_PORT,
          uiQuonfigWidth, uiEngineWidth,
          uiTopPadding, uiDarknetWidth, uiDarknetHeight } from "env.js";
 
-const SPORE            = "spores/dark-tendril.js";
-const STALE_TIMEOUT_MS = 30_000;
-const DASH_WIDTH       = 94;
+const SPORE              = "spores/dark-tendril.js";
+const STASIS_SPORE       = "spores/dark-stasis.js";
+const STALE_TIMEOUT_MS   = 30_000;
+const DASH_WIDTH         = 94;
+const ROAMING_TAP_CAP    = 50; // max raw entries kept in the roaming-tap ring buffer
 
-let searchQuery        = "";    // current name filter; empty = show all
-let pendingSearch      = false; // set by the 🔍 button, consumed by the main loop
-let pendingStasis      = false; // set by the ⚓ button, consumed by the main loop
-let pendingFilterNode  = null;  // set by per-row 🔍 buttons; consumed by the main loop
-let currentSingleMatch = null;  // node name when exactly one row is shown, else null
+let searchQuery           = "";    // current name filter; empty = show all
+let pendingSearch         = false; // set by the 🔍 button, consumed by the main loop
+let pendingStasis         = false; // set by the ⚓ button, consumed by the main loop
+let pendingFilterNode     = null;  // set by per-row 🔍 buttons; consumed by the main loop
+let currentSingleMatch    = null;  // node name when exactly one row is shown, else null
+let pendingResetState     = false; // 🧹 clear nodeMap + darknet.json + counters
+let pendingClearBroadcast = false; // 📡 drain port 1666
+let pendingKillTendrils   = false; // ☠️ kill all running dark-tendril spores
+let pendingBomb           = false; // 💣 killTendrils + resetState + clearBroadcast
+let pendingUnlinkNode     = null;  // node name to unlink, set by per-node unlink buttons
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+function btn(label, onClick) {
+  return React.createElement("button", {
+    onClick,
+    style: { cursor: "pointer", fontSize: "1em", padding: "3px 10px", marginLeft: "6px" },
+  }, label);
+}
 
 /** FNV-ish hash of spore source — used to detect outdated tendril instances. */
 function sporeFingerprint(content) {
@@ -115,37 +129,45 @@ function printDashboard(ns, engine) {
 
   ns.clearLog();
 
-  // ── SEED STORM banner (persists for the session once triggered) ────────────
-  if (engine.stormSeedEvents.length > 0) {
+  // ── STORM SEED banner (nodes carrying STORM_SEED.EXE, engine will stasis-link them) ──
+  const stormSeedNodes = [...nodeMap.values()].filter(r => r.hasStormSeed);
+  if (stormSeedNodes.length > 0) {
     const BANNER = { fontFamily: "monospace", fontSize: "1em", fontWeight: "bold",
                      color: "#ffffff", background: "#7c3aed", padding: "2px 8px",
                      display: "block", whiteSpace: "pre" };
     ns.printRaw(React.createElement("span", { style: BANNER },
-      `⚡ SEED STORM UNLEASHED (${engine.stormSeedEvents.length})`
+      `⚡ STORM SEED DETECTED (${stormSeedNodes.length})`
     ));
-    for (const ev of engine.stormSeedEvents) {
-      const ageS  = Math.floor((now - ev.ts) / 1000);
-      const ageStr = ageS < 60 ? `${ageS}s ago` : `${Math.floor(ageS/60)}m ago`;
+    for (const rec of stormSeedNodes) {
       ns.printRaw(React.createElement("span", { style: { fontFamily: "monospace", fontSize: "0.85em", color: "#c4b5fd", whiteSpace: "pre" } },
-        `  ⚡ ${ev.node.padEnd(24)} ${ageStr}`
+        `  ⚡ ${rec.node}`
       ));
     }
   }
 
   // ── Search bar ─────────────────────────────────────────────────────────────
   const stasisLabel = currentSingleMatch ? `⚓ ${currentSingleMatch}` : "⚓ stasis";
-  const searchBar = React.createElement("span", { style: { fontFamily: "monospace", fontSize: "0.9em" } },
-    createButton("🔍 filter", () => { pendingSearch = true; }),
+  const searchBar = React.createElement("span", { style: { fontFamily: "monospace", fontSize: "1em" } },
+    btn("🔍 filter", () => { pendingSearch = true; }),
     searchQuery
       ? React.createElement("span", { style: { marginLeft: "10px", color: "#36d9d9" } }, `"${searchQuery}"`)
       : null,
     searchQuery
-      ? createButton("✕", () => { searchQuery = ""; })
+      ? btn("✕", () => { searchQuery = ""; })
       : null,
     React.createElement("span", { style: { marginLeft: "16px" } }),
-    createButton(stasisLabel, () => { pendingStasis = true; }),
+    btn(stasisLabel, () => { pendingStasis = true; }),
   );
   ns.printRaw(searchBar);
+
+  // ── Reset controls ─────────────────────────────────────────────────────────
+  const resetBar = React.createElement("span", { style: { fontFamily: "monospace", fontSize: "1em" } },
+    btn("🧹 state",     () => { pendingResetState     = true; }),
+    btn("📡 1666",      () => { pendingClearBroadcast = true; }),
+    btn("☠️ tendrils",  () => { pendingKillTendrils   = true; }),
+    btn("💣 BOMB",      () => { pendingBomb           = true; }),
+  );
+  ns.printRaw(resetBar);
 
   // ── CONVERGENCE ────────────────────────────────────────────────────────────
   ns.print(sectionTitle("CONVERGENCE"));
@@ -158,8 +180,19 @@ function printDashboard(ns, engine) {
     try {
       const linked = ns.dnet.getStasisLinkedServers();
       const limit  = ns.dnet.getStasisLinkLimit();
-      const names  = linked.length ? linked.map(n => textCyane(`⚓ ${n}`)).join("  ") : "none";
-      ns.print(`  stasis  ${names}  (${linked.length}/${limit})`);
+      const unlinkBtns = linked.map(n =>
+        React.createElement("span", { key: n },
+          React.createElement("span", { style: { color: "#36d9d9", fontFamily: "monospace" } }, `  ⚓ ${n}`),
+          React.createElement("button", {
+            onClick: () => { pendingUnlinkNode = n; },
+            style: { cursor: "pointer", fontSize: "0.8em", padding: "1px 5px", marginLeft: "4px", color: "#f87171" },
+          }, "unlink"),
+        )
+      );
+      ns.printRaw(React.createElement("span", { style: { fontFamily: "monospace", fontSize: "0.9em" } },
+        `  stasis  `, ...( linked.length ? unlinkBtns : [React.createElement("span", { style: { color: "#555" } }, "none")] ),
+        React.createElement("span", { style: { color: "#555" } }, `  (${linked.length}/${limit})`),
+      ));
     } catch {}
   } else {
     ns.print("  awaiting first tick…");
@@ -250,8 +283,11 @@ function printDashboard(ns, engine) {
 
       const AUTH_COL = "   ";
 
+      const stormEl  = rec.hasStormSeed  ? c(" ⚡", COLOR.yellow) : "   ";
+      const stasisEl = rec.stasisLinked  ? c(" ⚓", COLOR.cyan)   : "   ";
+
       ns.printRaw(React.createElement("span", { style: ROW },
-        filterBtn, dotEl, " ", ...nodeNameParts, " ", depth, "  ", charisma, "  ", cacheAndLoot, "  ", ageEl, "  ", ...statusParts, "  ", ...authParts
+        filterBtn, dotEl, " ", ...nodeNameParts, " ", depth, "  ", charisma, "  ", cacheAndLoot, "  ", ageEl, "  ", ...statusParts, "  ", ...authParts, stormEl, stasisEl
       ));
 
       // Cracking info on its own line, indented to AUTH column; single space between each segment
@@ -286,11 +322,11 @@ function printDashboard(ns, engine) {
 class DarknetEngine extends EngineStoke {
   constructor(ns) {
     super(ns, "darknet");
-    this.nodeMap         = new Map();
-    this.history         = new TickHistory(60);
-    this.phishSuccesses  = 0;
-    this.phishFailures   = 0;
-    this.stormSeedEvents = []; // { node, ts, result }
+    this.nodeMap          = new Map();
+    this.history          = new TickHistory(60);
+    this.phishSuccesses   = 0;
+    this.phishFailures    = 0;
+    this.roamingTap       = []; // newest-first ring buffer of raw port-666 entries (peek-able via port 667)
   }
 
   /** Hash of the spore file currently on home — tendrils reporting a different v are stale. */
@@ -306,11 +342,13 @@ class DarknetEngine extends EngineStoke {
         isOnline: null, hasSession: null, isConnectedToCurrentServer: null,
         modelId: null, caches: [], loot: {}, lastSeen: null, dead: false,
         authMs: null, crackedStrategy: null, crackedMs: null, parent: null,
-        crackingInfo: null, crackDebugHistory: [], failCount: 0 });
+        crackingInfo: null, crackDebugHistory: [], failCount: 0, hasStormSeed: false,
+        stasisLinked: false });
     }
     return this.nodeMap.get(node);
   }
 
+  
   /**
    * Ensures a dark-tendril is running on the given node at the current spore version.
    * Skips nodes that are unreachable, under-RAM, or already current + fresh.
@@ -348,7 +386,7 @@ class DarknetEngine extends EngineStoke {
 
     if (running) this.ns.kill(SPORE, node);
 
-    this.ns.scp(SPORE, node, "home");
+    this.ns.scp([SPORE, STASIS_SPORE], node, "home");
     this.ns.exec(SPORE, node, { preventDuplicates: true });
   }
 
@@ -356,13 +394,17 @@ class DarknetEngine extends EngineStoke {
    * Consumes all messages from the roaming port (666) and merges them into nodeMap.
    * Handles: heartbeats (version + ts), auth results (cracked + secret), cache
    * discoveries, phishing results, and server connectivity flags.
+   * After draining, publishes a peek-able rolling snapshot to the tap port (667)
+   * so the Sniffer engine can observe traffic without consuming messages.
    */
   drainPort() {
     let entry;
+    const fresh = []; // raw strings collected this drain cycle
     while ((entry = this.ns.readPort(DARKNET_ROAMING_PORT)) !== "NULL PORT DATA") {
+      fresh.push(entry);
       try {
         const msg = JSON.parse(entry);
-        const { host, v, node, auth, secret, isOnline, hasSession, serverInfo, dbg, phishing, caches, loot, stormSeed, died, depth, charismaReq, authMs, crackingInfo, crackDebug } = msg;
+        const { host, v, node, auth, secret, isOnline, hasSession, serverInfo, dbg, phishing, caches, loot, died, depth, charismaReq, authMs, crackingInfo, crackDebug, hostServer, stasisLinked } = msg;
 
         if (host && v) {
           const rec    = this.#record(host);
@@ -370,7 +412,18 @@ class DarknetEngine extends EngineStoke {
           rec.ts       = died ? 0 : Date.now();
           rec.lastSeen = Date.now();
           if (died) { rec.dead = true; rec.hasSession = false; }
-          else        rec.dead = false;
+          else {
+            rec.dead = false;
+            if (hostServer) {
+              rec.isOnline   = hostServer.isOnline   ?? rec.isOnline;
+              rec.hasSession = hostServer.hasSession ?? rec.hasSession;
+              rec.modelId    = hostServer.modelId    ?? rec.modelId;
+              if (hostServer.hasSession && !rec.cracked) {
+                rec.cracked  = true;
+                rec.strategy = "inferred";
+              }
+            }
+          }
         }
 
         if (phishing) {
@@ -393,8 +446,13 @@ class DarknetEngine extends EngineStoke {
           continue;
         }
 
-        if (stormSeed && node) {
-          this.stormSeedEvents.push({ node, ts: stormSeed.ts ?? Date.now(), result: stormSeed.result });
+        if (msg.hasStormSeed && node) {
+          this.#record(node).hasStormSeed = true;
+          continue;
+        }
+
+        if (stasisLinked !== undefined && node) {
+          this.#record(node).stasisLinked = !!stasisLinked;
           continue;
         }
 
@@ -431,7 +489,7 @@ class DarknetEngine extends EngineStoke {
         if (depth      != null) rec.depth       = depth;
         if (charismaReq != null) rec.charismaReq = charismaReq;
         if (authMs     != null) rec.authMs      = authMs;
-        if (rec.parent      == null && host)        rec.parent      = host;
+        if (host)                                   rec.parent      = host;
         if (crackingInfo)                           rec.crackingInfo = crackingInfo;
         if (crackDebug  != null && Object.keys(crackDebug).length > 0) {
           rec.crackDebugHistory = [...(rec.crackDebugHistory ?? []).slice(-4), { ts: Date.now(), ...crackDebug }];
@@ -439,6 +497,17 @@ class DarknetEngine extends EngineStoke {
       } catch {
         // ignore malformed port messages
       }
+    }
+
+    // Update the roaming tap ring buffer (newest-first) and publish peek-able snapshot to port 667.
+    for (const raw of fresh) {
+      this.roamingTap.unshift(raw);
+      if (this.roamingTap.length > ROAMING_TAP_CAP) this.roamingTap.pop();
+    }
+    if (fresh.length > 0) {
+      while (this.ns.readPort(DARKNET_ROAMING_TAP_PORT) !== "NULL PORT DATA") {}
+      this.ns.tryWritePort(DARKNET_ROAMING_TAP_PORT,
+        JSON.stringify({ ts: Date.now(), entries: this.roamingTap }));
     }
   }
 
@@ -450,6 +519,10 @@ class DarknetEngine extends EngineStoke {
    */
   enrichFromDnet() {
     try {
+      // Sync stasisLinked from game state as ground truth (0 GB, covers all nodes)
+      const linked = new Set(this.ns.dnet.getStasisLinkedServers());
+      for (const [node, rec] of this.nodeMap) rec.stasisLinked = linked.has(node);
+
       for (const node of this.ns.dnet.probe()) {
         const rec = this.#record(node);
         try { rec.depth       = this.ns.dnet.getDepth(node); }                       catch {}
@@ -483,6 +556,25 @@ class DarknetEngine extends EngineStoke {
   }
 
   /**
+   * Re-spreads to cracked nodes that have gone completely silent (no tendril heartbeat
+   * for >STALE_TIMEOUT_MS) but still have an active session — orphaned by a dead parent
+   * tendril, or never successfully exec'd in the first place. Only attempts nodes
+   * reachable directly from home (in ns.dnet.probe()).
+   */
+  rescueSilent() {
+    const homeNeighbors = new Set();
+    try { for (const n of this.ns.dnet.probe()) homeNeighbors.add(n); } catch { return; }
+    const now = Date.now();
+    for (const [node, rec] of this.nodeMap) {
+      if (!homeNeighbors.has(node)) continue;
+      if (!rec.cracked || !rec.hasSession) continue;
+      if (rec.ts && now - rec.ts <= STALE_TIMEOUT_MS) continue; // still reporting — not orphaned
+      this.ns.scp([SPORE, STASIS_SPORE], node, "home");
+      this.ns.exec(SPORE, node, { preventDuplicates: true });
+    }
+  }
+
+  /**
    * Re-spreads the spore to nodes that are active (seen within STALE_TIMEOUT_MS)
    * but running an outdated version. Uses preventDuplicates: false to force a
    * fresh exec alongside any lingering stale instance.
@@ -492,8 +584,41 @@ class DarknetEngine extends EngineStoke {
     for (const [node, rec] of this.nodeMap) {
       if (!rec.ts || Date.now() - rec.ts > STALE_TIMEOUT_MS) continue;
       if (rec.v === expected) continue;
-      this.ns.scp(SPORE, node, "home");
+      this.ns.scp([SPORE, STASIS_SPORE], node, "home");
       this.ns.exec(SPORE, node, { preventDuplicates: false });
+    }
+  }
+
+  // ── Reset operations (invoked by dashboard buttons) ────────────────────────
+
+  /** Clear nodeMap, counters, stormSeedEvents, and darknet.json. */
+  resetState() {
+    this.nodeMap            = new Map();
+    this.history            = new TickHistory(60);
+    this.phishSuccesses     = 0;
+    this.phishFailures      = 0;
+    this.roamingTap         = [];
+    clearLedger(this.ns);
+  }
+
+  /** Drain the broadcast port (1666) so tendrils stop seeing stale secrets. */
+  clearBroadcast() {
+    while (this.ns.readPort(DARKNET_BROADCAST_PORT) !== "NULL PORT DATA") {}
+  }
+
+  /** Drain all queued port-666 messages without processing them into nodeMap.
+   *  Used after killTendrils() to discard the died:true messages they emit on exit. */
+  flushRoamingPort() {
+    while (this.ns.readPort(DARKNET_ROAMING_PORT) !== "NULL PORT DATA") {}
+  }
+
+  /** Kill every running dark-tendril spore across all known + probe nodes.
+   *  Call flushRoamingPort() after a short delay to discard the died:true messages. */
+  killTendrils() {
+    const targets = new Set([...this.nodeMap.keys()]);
+    try { for (const node of this.ns.dnet.probe()) targets.add(node); } catch {}
+    for (const node of targets) {
+      try { this.ns.kill(SPORE, node); } catch {}
     }
   }
 
@@ -506,6 +631,7 @@ class DarknetEngine extends EngineStoke {
       await this.spread(node);
     }
     this.floodStale();
+    this.rescueSilent();
     this.drainPort();
     this.publishSecrets();
     this.enrichFromDnet();
@@ -538,6 +664,10 @@ function initDarknetWindow(ns) {
 export async function main(ns) {
   initDarknetWindow(ns);
   ns.atExit(() => ns.ui.closeTail());
+
+  // Wipe stale previous-run data immediately so external readers (stats) see a clean slate.
+  clearLedger(ns);
+
   const engine = new DarknetEngine(ns);
 
   while (true) {
@@ -558,9 +688,78 @@ export async function main(ns) {
       if (pendingStasis) {
         pendingStasis = false;
         const target = currentSingleMatch
-          ?? await ns.prompt("Node to stasis-link", { type: "text" });
+          ?? await ns.prompt("Deploy stasis worker to node:", { type: "text" });
         if (target) {
-          try { await ns.dnet.setStasisLink(String(target)); } catch {}
+          const node = String(target);
+          try {
+            if (ns.isRunning(STASIS_SPORE, node)) {
+              ns.tprint(`⚓ dark-stasis already running on "${node}"`);
+            } else {
+              const rec = engine.nodeMap.get(node);
+              if (rec && !rec.hasSession) {
+                ns.tprint(`⚓ cannot deploy to "${node}" — no active session (tendril will deploy it automatically once authenticated)`);
+              } else {
+                ns.scp(STASIS_SPORE, node, "home");
+                const pid = ns.exec(STASIS_SPORE, node, { preventDuplicates: true });
+                ns.tprint(pid > 0
+                  ? `⚓ deployed dark-stasis → "${node}"`
+                  : `⚓ exec failed on "${node}" — node may be out of RAM or unreachable from home`);
+              }
+            }
+          } catch (e) {
+            ns.tprint(`⚓ ERROR deploying dark-stasis → "${node}": ${e?.message ?? e}`);
+          }
+        }
+        printDashboard(ns, engine);
+      }
+      if (pendingResetState) {
+        pendingResetState = false;
+        const confirmed = await ns.prompt("🧹 Reset state? Clears nodeMap, counters, and darknet.json.", { type: "boolean" });
+        if (confirmed) engine.resetState();
+        printDashboard(ns, engine);
+      }
+      if (pendingClearBroadcast) {
+        pendingClearBroadcast = false;
+        engine.clearBroadcast();
+        printDashboard(ns, engine);
+      }
+      if (pendingKillTendrils) {
+        pendingKillTendrils = false;
+        const confirmed = await ns.prompt("☠️ Kill all tendrils? They will redeploy fresh on next tick.", { type: "boolean" });
+        if (confirmed) {
+          engine.killTendrils();
+          await ns.sleep(200); // give atExit handlers time to emit died:true
+          engine.flushRoamingPort();
+        }
+        printDashboard(ns, engine);
+      }
+      if (pendingUnlinkNode != null) {
+        const node = pendingUnlinkNode;
+        pendingUnlinkNode = null;
+        try {
+          ns.tprint(`⚓ unlinking "${node}"…`);
+          await ns.singularity.connect("darkweb");
+          ns.tprint(`⚓ connecting to "${node}"…`);
+          await ns.singularity.connect(node);
+          // ns.kill(STASIS_SPORE, node);
+          const pid = ns.exec(STASIS_SPORE, node, { args: [false] });
+          // await ns.singularity.connect("home");
+          ns.tprint(pid > 0 ? `⚓ unlink dispatched → "${node}"` : `⚓ exec failed on "${node}"`);
+        } catch (e) {
+          // await ns.singularity.connect("home").catch(() => {});
+          ns.tprint(`⚓ ERROR unlinking "${node}": ${e?.message ?? e}`);
+        }
+        printDashboard(ns, engine);
+      }
+      if (pendingBomb) {
+        pendingBomb = false;
+        const confirmed = await ns.prompt("💣 BOMB: kill tendrils + reset state + clear broadcast?", { type: "boolean" });
+        if (confirmed) {
+          engine.killTendrils();
+          await ns.sleep(200); // give atExit handlers time to emit died:true
+          engine.flushRoamingPort(); // discard died messages before resetting
+          engine.resetState();
+          engine.clearBroadcast();
         }
         printDashboard(ns, engine);
       }

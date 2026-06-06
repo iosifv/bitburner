@@ -15,6 +15,7 @@ const SUB_ENGINES = [
   { name: "cortex",       script: "engine-v2-cortex.js",       delay: 2  },
   { name: "darknet",      script: "engine-v2-darknet.js",      delay: 2  },
   { name: "telepathy",    script: "engine-v2-telepathy.js",    delay: 2  },
+  { name: "sniffer",      script: "engine-v2-sniffer.js",      delay: 1  },
 ];
 
 const DRAIN_DELAY_MS  = 250;

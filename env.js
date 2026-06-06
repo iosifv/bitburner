@@ -5,8 +5,9 @@
 export const LOG_PORT          = 100; // propulsion engine log drain
 export const BATCH_DONE_PORT   = 101; // reserved for JIT batcher completion signals
 export const BATCHER_PORT      = 102; // batcher state — peek() to read without consuming
-export const DARKNET_ROAMING_PORT   = 666;  // tendrils → engine: heartbeats and auth results
+export const DARKNET_ROAMING_PORT   = 666;  // tendrils → engine: heartbeats and auth results (drain-queue)
 export const DARKNET_BROADCAST_PORT = 1666; // engine → tendrils: known node secrets (peek-able snapshot)
+export const DARKNET_ROAMING_TAP_PORT = 667; // peek-able rolling buffer of port-666 traffic, published by engine
 
 // ── UI window layout ──────────────────────────────────────────────────────────
 export const uiTopPadding     = 20;
@@ -26,3 +27,6 @@ export const uiBoysHeight     = 620;
 
 export const uiDarknetWidth   = 800;
 export const uiDarknetHeight  = uiQuonfigHeight - 30;
+
+export const uiSnifferWidth   = 1200;
+export const uiSnifferHeight  = uiQuonfigHeight;
