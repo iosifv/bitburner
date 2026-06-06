@@ -13,6 +13,7 @@ const DASH_WIDTH       = 94;
 let searchQuery        = "";    // current name filter; empty = show all
 let pendingSearch      = false; // set by the 🔍 button, consumed by the main loop
 let pendingStasis      = false; // set by the ⚓ button, consumed by the main loop
+let pendingFilterNode  = null;  // set by per-row 🔍 buttons; consumed by the main loop
 let currentSingleMatch = null;  // node name when exactly one row is shown, else null
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -80,12 +81,12 @@ function buildConnectChain(node, nodeMap) {
   return chain.map(n => `connect ${n}`).join(" ; ");
 }
 
-/** Seconds since lastSeen, right-padded to 5 chars; yellow when older than STALE_TIMEOUT_MS. */
-function formatAge(lastSeen, now) {
-  if (lastSeen == null) return "    —";
-  const s   = Math.round((now - lastSeen) / 1000);
-  const str = `${s}s`.padStart(5);
-  return s > STALE_TIMEOUT_MS / 1000 ? textYellow(str) : str;
+// ── React CSS colour tokens ───────────────────────────────────────────────────
+const COLOR = { green: "#4ade80", yellow: "#fbbf24", red: "#f87171", cyan: "#36d9d9", dim: "#6b7280" };
+
+/** Wrap text in a React span with the given CSS color. */
+function c(text, color) {
+  return React.createElement("span", { style: { color } }, text);
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -113,6 +114,23 @@ function printDashboard(ns, engine) {
   }
 
   ns.clearLog();
+
+  // ── SEED STORM banner (persists for the session once triggered) ────────────
+  if (engine.stormSeedEvents.length > 0) {
+    const BANNER = { fontFamily: "monospace", fontSize: "1em", fontWeight: "bold",
+                     color: "#ffffff", background: "#7c3aed", padding: "2px 8px",
+                     display: "block", whiteSpace: "pre" };
+    ns.printRaw(React.createElement("span", { style: BANNER },
+      `⚡ SEED STORM UNLEASHED (${engine.stormSeedEvents.length})`
+    ));
+    for (const ev of engine.stormSeedEvents) {
+      const ageS  = Math.floor((now - ev.ts) / 1000);
+      const ageStr = ageS < 60 ? `${ageS}s ago` : `${Math.floor(ageS/60)}m ago`;
+      ns.printRaw(React.createElement("span", { style: { fontFamily: "monospace", fontSize: "0.85em", color: "#c4b5fd", whiteSpace: "pre" } },
+        `  ⚡ ${ev.node.padEnd(24)} ${ageStr}`
+      ));
+    }
+  }
 
   // ── Search bar ─────────────────────────────────────────────────────────────
   const stasisLabel = currentSingleMatch ? `⚓ ${currentSingleMatch}` : "⚓ stasis";
@@ -154,42 +172,100 @@ function printDashboard(ns, engine) {
   if (nodeMap.size === 0) {
     ns.print("  no nodes discovered yet");
   } else {
-    // Cracked-first, then locked; within each group sort by depth asc (nulls last)
+    // Tier 0: cracked + not dead  |  Tier 1: online + locked  |  Tier 2: dead / offline
+    const nodeTier = rec => {
+      if (rec.dead || !rec.isOnline) return 2;
+      if (rec.cracked) return 0;
+      return 1;
+    };
     const sortedNodes = [...nodeMap.entries()].sort(([, a], [, b]) => {
-      if (a.cracked !== b.cracked) return a.cracked ? -1 : 1;
+      const tierDiff = nodeTier(a) - nodeTier(b);
+      if (tierDiff !== 0) return tierDiff;
       return (a.depth ?? 999) - (b.depth ?? 999);
     });
 
     const q     = searchQuery.toLowerCase();
     const shown = q ? sortedNodes.filter(([name]) => name.toLowerCase().includes(q)) : sortedNodes;
 
-    ns.print(`  ${"●"} ${"NODE".padEnd(22)} ${"D".padStart(2)}  ${"CHA".padStart(5)}  ${"C/L".padStart(5)}  ${"AGE".padStart(5)}  ${"STAT".padEnd(5)}  AUTH`);
+    // Shared style for all table rows — must match header for column alignment
+    const ROW = { fontFamily: "monospace", fontSize: "0.9em", whiteSpace: "pre" };
+
+    // Header (React so font/size matches data rows)
+    ns.printRaw(React.createElement("span", { style: ROW },
+      `  ${"●"} ${"NODE".padEnd(22)} ${"D".padStart(2)}  ${"CHA".padStart(5)} ${"C/L".padStart(5)}  ${"AGE".padStart(5)}  ${"STAT".padEnd(5)}  AUTH`
+    ));
     if (q) ns.print(`  ${textYellow(`filter "${searchQuery}"  (${shown.length} match${shown.length === 1 ? "" : "es"})`)}`);
     if (q && shown.length === 0) ns.print("  no nodes match");
+
     for (const [node, rec] of shown) {
-      const dot      = dead.has(node)    ? textRed("●")
-                     : silent.has(node)  ? "○"
-                     : stale.has(node)   ? textYellow("●")
-                     : textGreen("●");
+      // ── dot ──────────────────────────────────────────────────────────────
+      const dotEl = dead.has(node)   ? c("●", COLOR.red)
+                  : silent.has(node) ? "○"
+                  : stale.has(node)  ? c("●", COLOR.yellow)
+                  : c("●", COLOR.green);
+
+      // ── node name (22 cols) ───────────────────────────────────────────────
       const variationSelectors = (node.match(/️/g) ?? []).length;
-      const nodeName = node.length > 22 ? node.slice(0, 21) + textRed("|") : node.padEnd(22) + " ".repeat(variationSelectors);
-      const depth    = rec.depth      != null ? String(rec.depth).padStart(2)      : " ?";
-      const charisma = rec.charismaReq != null ? String(rec.charismaReq).padStart(5) : "    ?";
-      const cRaw     = rec.caches?.length ?? 0;
-      const lRaw     = Object.keys(rec.loot ?? {}).length;
+      const nodeNameParts = node.length > 22
+        ? [node.slice(0, 21), c("|", COLOR.red)]
+        : [node.padEnd(22) + " ".repeat(variationSelectors)];
+
+      // ── fixed-width columns ───────────────────────────────────────────────
+      const depth        = rec.depth       != null ? String(rec.depth).padStart(2)       : " ?";
+      const charisma     = rec.charismaReq != null ? String(rec.charismaReq).padStart(5) : "    ?";
+      const cRaw         = rec.caches?.length ?? 0;
+      const lRaw         = Object.keys(rec.loot ?? {}).length;
       const cacheAndLoot = `${String(cRaw || "-").padStart(2)}${String(lRaw || "-").padStart(2)}`;
-      const age      = formatAge(rec.lastSeen, now);
-      const status   = rec.isOnline == null ? "?    "
-                     : !rec.isOnline        ? `${textRed("off")}  `
-                     : rec.hasSession       ? `${textGreen("on+s")} `
-                     :                       `${textYellow("on")}   `;
-      const authDisplay = rec.strategy === "cached" && rec.crackedStrategy
-        ? `(c) ${rec.crackedStrategy}${rec.crackedMs != null ? ` (${rec.crackedMs}ms)` : ""}`
-        : `${rec.strategy ?? "cracked"}${rec.authMs != null ? ` (${rec.authMs}ms)` : ""}`;
-      const authStr  = rec.cracked
-        ? textGreen(`✓ ${authDisplay}`)
-        : textRed("✗ locked");
-      ns.print(`  ${dot} ${nodeName} ${depth}  ${charisma}  ${cacheAndLoot}  ${age}  ${status}  ${authStr}`);
+
+      // ── age (yellow when stale) ───────────────────────────────────────────
+      const ageSeconds = rec.lastSeen == null ? null : Math.round((now - rec.lastSeen) / 1000);
+      const ageStr     = ageSeconds == null ? "    —" : `${ageSeconds}s`.padStart(5);
+      const ageEl      = ageSeconds != null && ageSeconds > STALE_TIMEOUT_MS / 1000
+        ? c(ageStr, COLOR.yellow)
+        : ageStr;
+
+      // ── online status ─────────────────────────────────────────────────────
+      const statusParts = rec.isOnline == null ? ["?    "]
+        : !rec.isOnline  ? [c("off", COLOR.red),    "  "]
+        : rec.hasSession ? [c("on+s", COLOR.green),  " "]
+        :                  [c("on", COLOR.yellow),   "   "];
+
+      // ── auth / fail info ──────────────────────────────────────────────────
+      let authParts;
+      if (rec.cracked) {
+        const authDisplay = rec.strategy === "cached" && rec.crackedStrategy
+          ? `(c) ${rec.crackedStrategy}${rec.crackedMs != null ? ` (${rec.crackedMs}ms)` : ""}`
+          : `${rec.strategy ?? "cracked"}${rec.authMs != null ? ` (${rec.authMs}ms)` : ""}`;
+        authParts = [c(`✓ ${authDisplay}`, COLOR.green)];
+      } else {
+        authParts = [c("✗ locked", COLOR.red)];
+        if (rec.failCount > 0) authParts.push(c(`  ⟳x${rec.failCount}`, COLOR.dim));
+      }
+
+      // Per-row filter button — sets searchQuery to this node, triggering single-match JSON view
+      const filterBtn = React.createElement("button", {
+        onClick: () => { pendingFilterNode = node; },
+        style: { cursor: "pointer", fontSize: "0.7em", padding: "0 3px", marginRight: "4px", opacity: "0.5" },
+      }, "🔍");
+
+      const AUTH_COL = "   ";
+
+      ns.printRaw(React.createElement("span", { style: ROW },
+        filterBtn, dotEl, " ", ...nodeNameParts, " ", depth, "  ", charisma, "  ", cacheAndLoot, "  ", ageEl, "  ", ...statusParts, "  ", ...authParts
+      ));
+
+      // Cracking info on its own line, indented to AUTH column; single space between each segment
+      if (!rec.cracked && rec.crackingInfo) {
+        const { model, length, format, hint } = rec.crackingInfo;
+        const debugParts = [
+          model  && c(model, COLOR.cyan),
+          length && c(` len:${length}`, COLOR.dim),
+          format && c(` fmt:${format}`, COLOR.dim),
+          hint   && c(` "${hint.slice(0, 60)}"`, COLOR.yellow),
+        ].filter(Boolean);
+        if (debugParts.length) ns.printRaw(React.createElement("span", { style: ROW }, AUTH_COL, ...debugParts));
+      }
+
       if (shown.length === 1) {
         ns.print(`  ${textCyane(buildConnectChain(node, nodeMap))}`);
         JSON.stringify(rec, null, 2).split("\n").forEach(line => ns.print("  " + line));
@@ -214,6 +290,7 @@ class DarknetEngine extends EngineStoke {
     this.history         = new TickHistory(60);
     this.phishSuccesses  = 0;
     this.phishFailures   = 0;
+    this.stormSeedEvents = []; // { node, ts, result }
   }
 
   /** Hash of the spore file currently on home — tendrils reporting a different v are stale. */
@@ -229,7 +306,7 @@ class DarknetEngine extends EngineStoke {
         isOnline: null, hasSession: null, isConnectedToCurrentServer: null,
         modelId: null, caches: [], loot: {}, lastSeen: null, dead: false,
         authMs: null, crackedStrategy: null, crackedMs: null, parent: null,
-        crackingInfo: null });
+        crackingInfo: null, crackDebugHistory: [], failCount: 0 });
     }
     return this.nodeMap.get(node);
   }
@@ -247,9 +324,17 @@ class DarknetEngine extends EngineStoke {
     rec.hasSession                 = darknetServer.hasSession;
     rec.isConnectedToCurrentServer = darknetServer.isConnectedToCurrentServer;
 
-    if (!darknetServer.isOnline || !darknetServer.isConnectedToCurrentServer || !darknetServer.hasSession) {
-      return;
+    if (!darknetServer.isOnline || !darknetServer.isConnectedToCurrentServer) return;
+
+    // Session expired but we have the secret — try to restore it before spreading
+    if (!darknetServer.hasSession && rec.cracked && rec.secret != null) {
+      try {
+        const ok = await this.ns.dnet.authenticate(node, rec.secret);
+        if (ok) rec.hasSession = true;
+      } catch {}
     }
+
+    if (!rec.hasSession) return;
 
     const sporeRam = this.ns.getScriptRam(SPORE, "home");
     const nodeRam  = this.ns.getServerMaxRam(node);
@@ -277,15 +362,15 @@ class DarknetEngine extends EngineStoke {
     while ((entry = this.ns.readPort(DARKNET_ROAMING_PORT)) !== "NULL PORT DATA") {
       try {
         const msg = JSON.parse(entry);
-        const { host, v, node, auth, secret, isOnline, hasSession, serverInfo, dbg, phishing, caches, loot, died, depth, charismaReq, authMs, crackingInfo } = msg;
+        const { host, v, node, auth, secret, isOnline, hasSession, serverInfo, dbg, phishing, caches, loot, stormSeed, died, depth, charismaReq, authMs, crackingInfo, crackDebug } = msg;
 
         if (host && v) {
           const rec    = this.#record(host);
           rec.v        = v;
           rec.ts       = died ? 0 : Date.now();
           rec.lastSeen = Date.now();
-          if (died) rec.dead = true;
-          else      rec.dead = false;
+          if (died) { rec.dead = true; rec.hasSession = false; }
+          else        rec.dead = false;
         }
 
         if (phishing) {
@@ -308,6 +393,11 @@ class DarknetEngine extends EngineStoke {
           continue;
         }
 
+        if (stormSeed && node) {
+          this.stormSeedEvents.push({ node, ts: stormSeed.ts ?? Date.now(), result: stormSeed.result });
+          continue;
+        }
+
         if (!node) continue;
 
         const rec    = this.#record(node);
@@ -318,10 +408,19 @@ class DarknetEngine extends EngineStoke {
           if (!rec.cracked) {
             rec.crackedStrategy = auth.strategy ?? null;
             rec.crackedMs       = authMs        ?? null;
+            rec.failCount       = 0;
           }
           rec.cracked  = true;
           rec.strategy = auth.strategy ?? rec.strategy;
           rec.secret   = secret        ?? rec.secret;
+        } else if (auth && !auth.success) {
+          rec.failCount = (rec.failCount ?? 0) + 1;
+          if (rec.cracked && isOnline !== false) {
+            // Secret is stale (e.g. KingOfTheHill password changed) — force re-crack.
+            rec.cracked  = false;
+            rec.secret   = null;
+            rec.strategy = null;
+          }
         }
         if (serverInfo) {
           rec.isOnline                   = serverInfo.isOnline  ?? rec.isOnline;
@@ -334,6 +433,9 @@ class DarknetEngine extends EngineStoke {
         if (authMs     != null) rec.authMs      = authMs;
         if (rec.parent      == null && host)        rec.parent      = host;
         if (crackingInfo)                           rec.crackingInfo = crackingInfo;
+        if (crackDebug  != null && Object.keys(crackDebug).length > 0) {
+          rec.crackDebugHistory = [...(rec.crackDebugHistory ?? []).slice(-4), { ts: Date.now(), ...crackDebug }];
+        }
       } catch {
         // ignore malformed port messages
       }
@@ -446,6 +548,11 @@ export async function main(ns) {
         pendingSearch = false;
         const result = await ns.prompt("Filter nodes by name (blank to clear)", { type: "text" });
         searchQuery = result ? String(result) : "";
+        printDashboard(ns, engine);
+      }
+      if (pendingFilterNode != null) {
+        searchQuery = pendingFilterNode;
+        pendingFilterNode = null;
         printDashboard(ns, engine);
       }
       if (pendingStasis) {

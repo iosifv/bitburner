@@ -24,8 +24,10 @@
 
 
   "cortex-target-hack-initial": { "type": "number", "value": 100, "label": "Hack Initial" },
-  "cortex-target-combat": { "type": "string", "value": "165,165,165,165", "label": "Str,Def,Dex,Agi" },
+  "cortex-target-combat": { "type": "choice", "value": "165,165,165,165", "label": "Str,Def,Dex,Agi", "choices": ["75,75,75,75", "165,165,165,165", "200,200,200,200", "850,850,850,850", "1200,1200,1200,1200"] },
   "cortex-target-cha": { "type": "number", "value": 100, "label": "Charisma" },
+  "cortex-work-company": { "type": "boolean", "value": true, "label": "Work Company" },
+  "cortex-work-daedalus": { "type": "boolean", "value": true, "label": "Work Daedalus" },
 
 
 

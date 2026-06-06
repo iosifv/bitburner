@@ -39,7 +39,7 @@ function ConfigApp({ initialCfg }) {
         style: { color: "#666", fontSize: "0.75em", paddingTop: "10px", paddingBottom: "2px", textTransform: "uppercase", letterSpacing: "2px" },
       }, prefix),
     ),
-    ...entries.map(([key, { type, value, label }]) => {
+    ...entries.map(([key, { type, value, label, choices }]) => {
       let control;
       if (type === "boolean") {
         control = React.createElement("button", {
@@ -51,6 +51,23 @@ function ConfigApp({ initialCfg }) {
             borderRadius: "3px", fontWeight: "bold", minWidth: "56px", fontFamily: "monospace",
           },
         }, value ? "ON" : "OFF");
+      } else if (type === "choice") {
+        control = React.createElement("span", { style: { display: "flex", flexWrap: "wrap", gap: "3px" } },
+          ...(choices ?? []).map(choice =>
+            React.createElement("button", {
+              key: choice,
+              onClick: () => { pendingEdit = { key, type: "choice", newValue: choice }; },
+              style: {
+                cursor: "pointer",
+                background: choice === value ? "#1a4d1a" : "#2a2a2a",
+                color:      choice === value ? "#4dff4d" : "#888",
+                border:     `1px solid ${choice === value ? "#2d7a2d" : "#444"}`,
+                padding: "1px 6px", borderRadius: "3px",
+                fontFamily: "monospace", fontSize: "0.85em",
+              },
+            }, choice)
+          ),
+        );
       } else {
         control = React.createElement("span", { style: { whiteSpace: "nowrap" } },
           React.createElement("button", {
@@ -98,7 +115,7 @@ export async function main(ns) {
     const { key, type, newValue } = pendingEdit;
     pendingEdit = null;
 
-    if (type === "boolean") {
+    if (type === "boolean" || type === "choice") {
       setConfig(ns, key, newValue);
     } else {
       const result = await ns.prompt(loadCfg(ns)[key].label, { type: "text" });
